@@ -21,6 +21,14 @@ spring:
           # 회원가입·로그인은 JWT 필터 없이 통과 (필터 내부에서 permit 처리)
           filters:
             - JwtAuthentication
+
+        - id: profile-service
+          uri: lb://profile-service
+          predicates:
+            - Path=/api/profiles/**
+          filters:
+            - JwtAuthentication
+
         - id: message-service
           uri: lb://message-service
           predicates:
@@ -33,6 +41,7 @@ spring:
             - Path=/ws/**
           filters:
             - JwtAuthentication
+
 eureka:
   client:
     service-url:

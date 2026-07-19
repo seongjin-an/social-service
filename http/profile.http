@@ -1,0 +1,15 @@
+### 회원가입
+POST http://{{domain}}:{{port}}/api/profiles
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiIwMDdmYWQ0Zi1hMTRhLTQ4MWEtOTI4Zi01YzczYzAzZDNmYmEiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ0NDk0ODMsImV4cCI6MTc4NDQ1MzA4M30.wK-vJdo3jar1u25cRZGN7gmwZVGDH0uHbsrG93OAN1C35tDi-aqx2bNUqVKjUoEXX7055cJB4ZDXYpdsq2-x6g
+
+{
+  "gender": "MALE",
+  "birthday": "19940225",
+  "bio": "아하?",
+  "tags": ["넷플릭스"],
+  "prefGender": "FEMALE",
+  "prefAgeMin": 20,
+  "prefAgeMax": 22,
+  "prefDistanceKm": 5
+}

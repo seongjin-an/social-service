@@ -9,7 +9,7 @@ import java.time.format.ResolverStyle;
 
 public class YyyyMmDdValidator implements ConstraintValidator<ValidDate, String> {
     private static final DateTimeFormatter FMT =
-        DateTimeFormatter.ofPattern("uuuuMMdd").withResolverStyle(ResolverStyle.STRICT);  // ★
+        DateTimeFormatter.ofPattern("yyyyMMdd").withResolverStyle(ResolverStyle.STRICT);  // ★
 
     @Override
     public boolean isValid(String v, ConstraintValidatorContext c) {

@@ -31,13 +31,14 @@ public class ProfileWriteService {
     @Transactional
     public String saveProfile(ProfileWriteDto dto) {
         UUID profileId = UuidV7Generator.generate();
+        String profileStrId = profileId.toString();
 
         ProfileEntity profileEntity = dto.toProfileEntity(profileId);
         profileRepository.save(profileEntity);
 
         List<String> rawTags = dto.tags();
         if (rawTags == null || rawTags.isEmpty()) {
-            return;
+            return profileStrId;
         }
 
         // 정규화 기준 중복 제거 — "Java"/"java" 를 하나로. 안 하면 uk_profile_tag(profile_id, tag_id) 위반.
@@ -60,7 +61,7 @@ public class ProfileWriteService {
         // 인기 태그 카운트 — 원자적 +1 (부착 수 반영).
         tagIds.forEach(tagRepository::incrementUsage);
 
-        return profileId.toString();
+        return profileStrId;
     }
 
     /**

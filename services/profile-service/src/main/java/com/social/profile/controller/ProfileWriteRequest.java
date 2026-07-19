@@ -1,10 +1,11 @@
 package com.social.profile.controller;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.social.common.Gender;
-import com.social.common.date.ValidDate;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Positive;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,7 +16,9 @@ public record ProfileWriteRequest(
     @NotNull
     Gender gender,
 
-    @ValidDate
+    @NotNull
+    @Past
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyyMMdd")
     LocalDate birthday,
 
     @NotBlank
