@@ -1,0 +1,22 @@
+server:
+  port: 8761
+
+spring:
+  application:
+    name: eureka-server
+
+eureka:
+  client:
+    register-with-eureka: false   # 자기 자신은 등록하지 않음
+    fetch-registry: false
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  server:
+    wait-time-in-ms-when-sync-empty: 0   # 개발 환경: 빠른 기동을 위해 대기 시간 제거
+    enable-self-preservation: false       # 개발 환경: 자기 보존 모드 비활성화
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

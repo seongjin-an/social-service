@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Discovery — 설계 문서</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2333;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --muted: #9da7b3;
+    --accent: #f78fb3;
+    --accent-2: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #e3b341;
+    --code-bg: #0b0f16;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 48px 24px 120px; }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 28px;
+    margin-bottom: 8px;
+  }
+  header.hero h1 {
+    font-size: 2.2rem;
+    margin: 0 0 8px;
+    letter-spacing: -0.5px;
+  }
+  header.hero .sub { color: var(--muted); font-size: 1.05rem; }
+  header.hero .tagline {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: linear-gradient(90deg, rgba(247,143,179,0.12), transparent);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    color: var(--text);
+  }
+
+  nav.toc {
+    position: sticky; top: 0;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin: 28px 0 40px;
+    z-index: 10;
+  }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 4px 0; }
+  nav.toc a { color: var(--accent-2); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+
+  section { margin: 56px 0; scroll-margin-top: 90px; }
+  h2 {
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 22px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-size: 1.1rem;
+  }
+  h3 { font-size: 1.15rem; margin: 28px 0 12px; color: var(--text); }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 999px;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  .badge.new { background: rgba(63,185,80,0.18); color: var(--green); border: 1px solid rgba(63,185,80,0.4); }
+  .badge.reuse { background: rgba(88,166,255,0.16); color: var(--accent-2); border: 1px solid rgba(88,166,255,0.4); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 18px 0;
+  }
+  .card h3:first-child { margin-top: 0; }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: #c9d4e0;
+  }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--panel-2); padding: 1px 6px; border-radius: 4px; color: #f0c0d4; }
+  pre code { background: none; padding: 0; color: inherit; font-size: 1em; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+  th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--panel-2); color: var(--text); font-weight: 600; }
+  td code { white-space: nowrap; }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+
+  .keynote {
+    background: linear-gradient(135deg, rgba(247,143,179,0.10), rgba(88,166,255,0.06));
+    border: 1px solid rgba(247,143,179,0.35);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 18px 0;
+  }
+  .keynote strong { color: var(--accent); }
+
+  ul.clean { list-style: none; padding-left: 0; }
+  ul.clean li { padding: 6px 0 6px 26px; position: relative; }
+  ul.clean li::before { content: "▸"; position: absolute; left: 4px; color: var(--accent); }
+
+  .flow-steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .flow-steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 12px 0 12px 48px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .flow-steps > li:last-child { border-bottom: none; }
+  .flow-steps > li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 12px;
+    width: 30px; height: 30px;
+    background: var(--accent);
+    color: #1a1a1a;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+  }
+
+  .phase { display: flex; gap: 16px; margin: 14px 0; align-items: flex-start; }
+  .phase .tag {
+    flex: 0 0 auto;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    min-width: 78px;
+    text-align: center;
+  }
+  .phase.hot .tag { background: rgba(247,143,179,0.18); color: var(--accent); border-color: rgba(247,143,179,0.5); }
+  .phase .body { flex: 1; }
+  .phase .body .t { font-weight: 600; }
+
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media (max-width: 720px){ .cmp { grid-template-columns: 1fr; } nav.toc ol { columns: 1; } }
+  .cmp .bad, .cmp .good {
+    border-radius: 10px; padding: 16px 18px; border: 1px solid var(--border);
+  }
+  .cmp .bad { background: rgba(248,81,73,0.07); border-color: rgba(248,81,73,0.35); }
+  .cmp .good { background: rgba(63,185,80,0.07); border-color: rgba(63,185,80,0.35); }
+  .cmp h4 { margin: 0 0 10px; }
+  .cmp .bad h4 { color: var(--red); }
+  .cmp .good h4 { color: var(--green); }
+
+  .x { color: var(--red); font-weight: 700; }
+  .ok { color: var(--green); font-weight: 700; }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .pill {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; flex: 1; min-width: 200px;
+  }
+  .pill b { color: var(--accent-2); }
+
+  .summary-line {
+    font-family: var(--mono); font-size: 0.85rem;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; line-height: 1.9; margin: 16px 0;
+  }
+  .summary-line .k { color: var(--accent); }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Social Discovery — 백엔드 설계 문서</h1>
+  <div class="sub">만남/소개 서비스 · Kafka 파티션 직렬화 기반 매칭 정합성 설계</div>
+  <div class="tagline">
+    채팅에서 쓰던 <strong>파티션 순서보장 · 멱등성 · Outbox · CDC · Fanout</strong> 자산을 새 도메인의
+    정합성 문제에 재해석해서 적용 — <em>"동시에 눌러도 / 서버가 죽어도 / Kafka가 흔들려도 매칭과 알림이 절대 어긋나거나 사라지지 않는다."</em>
+  </div>
+</header>
+
+<nav class="toc">
+  <ol>
+    <li><a href="#services">서비스 구성</a></li>
+    <li><a href="#model">데이터 모델</a></li>
+    <li><a href="#topic">토픽 토폴로지</a></li>
+    <li><a href="#match-flow">매칭 성사 플로우</a></li>
+    <li><a href="#roadmap">구현 로드맵</a></li>
+    <li><a href="#why-kafka">왜 Kafka를 거치는가</a></li>
+    <li><a href="#why-outbox">왜 Outbox + CDC인가</a></li>
+    <li><a href="#summary">한 줄 정리</a></li>
+  </ol>
+</nav>
+
+<!-- 0. 서비스 구성 -->
+<section id="services">
+  <h2><span class="num">00</span> 서비스 구성 <span style="font-size:0.9rem;color:var(--muted)">— 뭘 새로 만들고 뭘 재활용하는가</span></h2>
+
+  <div class="keynote">
+    채팅 파이프라인 인프라(라우팅·연결·메시지·팬아웃)는 <strong>이미 모듈로 존재</strong>한다.
+    새 도메인을 위한 <strong>신규 모듈은 셋 — 매칭 코어(<code>matching-service</code>) · 사람 추천(<code>recommendation-service</code>) · 오픈채팅(<code>openchat-service</code>)</strong>이고,
+    각각 <strong>부하·장애 프로파일이 다르다</strong>(hot key / 랭킹 서빙 / 방 fanout)라서 분리한다. 나머지는 전부 기존 모듈 확장 또는 재활용 — "새 도메인을 최소 신규 코드로 얹는다"가 이 설계의 뼈대.
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>모듈</th><th>구분</th><th>역할</th><th>Phase</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>matching-service</code></td>
+        <td><span class="badge new">🆕 신규</span></td>
+        <td>좋아요/패스 수집 → <code>like-relay</code> 파티션 직렬화 → 멱등 매칭 성사 → outbox (<b>프로젝트의 심장</b>)</td>
+        <td>P1 🔥</td>
+      </tr>
+      <tr>
+        <td><code>recommendation-service</code></td>
+        <td><span class="badge new">🆕 신규</span></td>
+        <td>사람 추천 피드 — geo 반경·필터(나이/거리/관심사)·랭킹·본 사람 제외(bloom). 랭킹 <b>서빙 read-heavy</b></td>
+        <td>P2</td>
+      </tr>
+      <tr>
+        <td><code>openchat-service</code></td>
+        <td><span class="badge new">🆕 신규</span></td>
+        <td>오픈채팅방 탐색/검색/입장. 방 메타 관리 + 대규모 방 <b>fanout·presence heavy</b></td>
+        <td>P3</td>
+      </tr>
+      <tr>
+        <td><code>user-service</code></td>
+        <td><span class="badge reuse">♻️ 확장</span></td>
+        <td>프로필·위치·관심사·선호 필드 추가 (<code>users</code> 테이블 확장)</td>
+        <td>P0</td>
+      </tr>
+      <tr>
+        <td><code>message-service</code></td>
+        <td><span class="badge reuse">♻️ 확장</span></td>
+        <td><code>channel.type</code>(<code>DIRECT</code>|<code>OPEN</code>) 한 컬럼 추가로 1:1·오픈방 통일</td>
+        <td>P1 · P3</td>
+      </tr>
+      <tr>
+        <td><code>fanout-delivery-service</code></td>
+        <td><span class="badge reuse">♻️ 확장</span></td>
+        <td><code>match-fanout</code> 구독 추가(매칭 성사 → 양쪽 푸시 + 방 자동 오픈) · 대규모 오픈방 fanout·presence</td>
+        <td>P1 · P3</td>
+      </tr>
+      <tr>
+        <td><code>connection-service</code></td>
+        <td><span class="badge reuse">♻️ 재활용</span></td>
+        <td>인스턴스 라우팅(<code>connection-instance-{id}</code>) — 수정 없이 그대로 사용</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><code>api-gateway</code> · <code>eureka-server</code></td>
+        <td><span class="badge reuse">♻️ 재활용</span></td>
+        <td>게이트웨이 · 서비스 디스커버리 — 라우트만 추가</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>인프라 (모듈 아님)</h3>
+  <div class="pill-row">
+    <div class="pill"><b>Redis</b> — <code>geo:users</code>(GEO 반경검색) · <code>feed:{userId}</code>(추천 큐) · <code>seen:{userId}</code>(Bloom, 본 사람 제외)</div>
+    <div class="pill"><b>Debezium (CDC)</b> — <code>outbox</code> binlog → <code>match-fanout</code> 무손실 배달</div>
+    <div class="pill"><b>Kafka</b> — <code>like-relay</code> · <code>match-fanout</code> · 기존 message/read 토픽</div>
+  </div>
+</section>
+
+<!-- 1. 데이터 모델 -->
+<section id="model">
+  <h2><span class="num">01</span> 데이터 모델</h2>
+
+  <div class="card">
+    <h3>user-service <span class="badge reuse">♻️ 확장</span></h3>
+    <p><code>users</code> 테이블에 프로필 필드 추가</p>
+    <pre><code>users:  id, email, name, gender, birth_year, bio,
+        interests(JSON tags), lat, lng, geohash,
+        photos(JSON url list),          -- placeholder URL이면 충분
+        pref_gender, pref_age_min/max, pref_distance_km</code></pre>
+  </div>
+
+  <div class="card">
+    <h3>matching-service <span class="badge new">🆕</span></h3>
+    <pre><code>likes:   from_user_id, to_user_id (복합 PK),
+         type(LIKE|PASS|SUPER), created_at
+         -- 중복 좋아요는 PK로 멱등 흡수
+
+matches: match_id PK,
+         user_lo_id, user_hi_id,        -- 항상 정렬 저장 (lo < hi)
+         channel_id, status(ACTIVE|UNMATCHED), created_at,
+         UNIQUE(user_lo_id, user_hi_id) -- ★ 정확히 한 번 매칭 ★
+
+outbox:  (기존 패턴 그대로) MATCH_CREATED 이벤트</code></pre>
+  </div>
+
+  <div class="card">
+    <h3>message-service <span class="badge reuse">♻️</span></h3>
+    <p><code>channel.type</code> 컬럼만 추가 (<code>DIRECT</code> | <code>OPEN</code>). 1:1 매칭방도 오픈방도 같은 <code>channel</code> 테이블로 통일.</p>
+  </div>
+
+  <div class="card">
+    <h3>recommendation-service <span class="badge new">🆕</span></h3>
+    <p>사람 추천 피드. 상태를 거의 Redis에 두고 <code>users</code>(user-service)를 조합해 서빙 — 자체 RDB 테이블은 사실상 없음.</p>
+    <pre><code>-- 상태는 아래 Redis 자원 + user-service.users 조합으로 서빙
+-- (필요 시) reco_log: user_id, shown_user_id, shown_at  -- 노출/AB 분석용(옵션)</code></pre>
+  </div>
+
+  <div class="card">
+    <h3>openchat-service <span class="badge new">🆕</span></h3>
+    <pre><code>rooms:        room_id PK, title, category, member_count, created_at
+room_members: room_id, user_id (복합 PK), joined_at</code></pre>
+    <p>방 메타/멤버십만 소유. 실제 대화는 <code>message-service</code>(<code>channel.type=OPEN</code>), 대량 전송은 <code>fanout-delivery-service</code> 재활용.</p>
+  </div>
+
+  <div class="card">
+    <h3>Redis <span class="badge reuse">recommendation-service 자원</span></h3>
+    <pre><code>geo:users        (GEO)        -- GEOADD userId lng lat → 반경 검색
+feed:{userId}    (List)       -- 추천 후보 큐
+seen:{userId}    (Bloom/Set)  -- 이미 본 사람 제외</code></pre>
+  </div>
+</section>
+
+<!-- 2. 토픽 토폴로지 -->
+<section id="topic">
+  <h2><span class="num">02</span> 토픽 토폴로지</h2>
+  <table>
+    <thead>
+      <tr><th>토픽</th><th>파티션 키</th><th>Pub → Sub</th><th>용도</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>like-relay</code></td>
+        <td><code>pair(a,b)</code></td>
+        <td>client → matching-service</td>
+        <td>좋아요/패스 수집 · 직렬화</td>
+      </tr>
+      <tr>
+        <td><code>match-fanout</code></td>
+        <td><code>matchId</code></td>
+        <td>Debezium CDC → fanout-delivery-service</td>
+        <td>매칭 성사 → 양쪽 알림 + 방 생성</td>
+      </tr>
+      <tr>
+        <td><code>message-relay</code> / <code>message-fanout</code></td>
+        <td><code>channelId</code></td>
+        <td>(기존 ♻️)</td>
+        <td>1:1 · 오픈방 채팅</td>
+      </tr>
+      <tr>
+        <td><code>read-relay</code> / <code>read-fanout</code></td>
+        <td><code>channelId</code></td>
+        <td>(기존 ♻️)</td>
+        <td>읽음 처리</td>
+      </tr>
+      <tr>
+        <td><code>connection-instance-{id}</code></td>
+        <td>—</td>
+        <td>(기존 ♻️ connection-service)</td>
+        <td>인스턴스 라우팅</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="keynote">
+    <strong>핵심:</strong> <code>like-relay</code>의 파티션 키를 두 사람 쌍의 해시
+    <code>pair(a,b) = hash(min, max)</code>로 잡으면, A→B와 B→A 좋아요가 <strong>같은 파티션 → 같은 컨슈머 스레드</strong>에
+    순서대로 들어옵니다. 채팅에서 <code>channelId</code>로 메시지 순서를 보장하던 그 메커니즘이,
+    여기선 <strong>분산 락 없이 매칭을 직렬 판정</strong>하는 장치가 됩니다.
+  </div>
+</section>
+
+<!-- 3. 매칭 성사 플로우 -->
+<section id="match-flow">
+  <h2><span class="num">03</span> 매칭 성사 플로우 <span style="font-size:0.9rem;color:var(--muted)">— 메인 클라이맥스</span></h2>
+  <ol class="flow-steps">
+    <li>A가 B에게 좋아요 → <code>like-relay [key=pair(A,B)]</code></li>
+    <li>matching consumer: like 저장(PK 멱등). 역방향(B→A) 있나? → <span class="x">없음</span>, 종료</li>
+    <li>(나중에) B가 A에게 좋아요 → <code>like-relay</code> 같은 파티션 → 같은 컨슈머</li>
+    <li>역방향(A→B) 있나? → <span class="ok">있음!</span><br>
+        → <code>matches</code> INSERT (<code>UNIQUE(lo,hi)</code>로 중복 매칭 차단)<br>
+        → <code>outbox</code>(MATCH_CREATED, recipients=[A,B], new channel_id) <strong>※ 한 트랜잭션</strong></li>
+    <li>Debezium CDC → <code>match-fanout</code> → fanout-delivery-service<br>
+        → Redis <code>ws:user</code> 조회 → 양쪽 <code>connection-instance</code>로 푸시<br>
+        → "매칭 성사!" 알림 + <code>DIRECT</code> 채팅방 자동 오픈</li>
+    <li>두 사람 1:1 채팅 시작 (기존 채팅 파이프라인 그대로)</li>
+  </ol>
+
+  <div class="keynote">
+    <strong>단일 컨슈머 직렬화 + UNIQUE 제약</strong>의 이중 안전장치라, 양쪽이 같은 ms에 좋아요를 눌러도
+    채팅방은 정확히 하나. 이게 부하 테스트에서 <em>"동시 스와이프 폭주에도 중복 매칭 0"</em> 그래프로 증명됩니다.
+  </div>
+</section>
+
+<!-- 4. 로드맵 -->
+<section id="roadmap">
+  <h2><span class="num">04</span> 구현 로드맵</h2>
+
+  <div class="phase">
+    <div class="tag">Phase 0</div>
+    <div class="body">
+      <div class="t">기반 · 시드</div>
+      user-service 프로필/위치/관심사/선호 확장 + 합성 프로필 수만 개 생성기 (테스트 토대)
+    </div>
+  </div>
+
+  <div class="phase hot">
+    <div class="tag">Phase 1 🔥</div>
+    <div class="body">
+      <div class="t">매칭 코어 — 데모의 심장</div>
+      좋아요/패스 API → <code>like-relay</code> 직렬화 → 멱등 매칭 성사 → <code>match-fanout</code> →
+      실시간 알림 + DIRECT 채팅방 자동 생성 → 1:1 채팅 연결.
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="tag">Phase 2</div>
+    <div class="body">
+      <div class="t">추천 피드 <span style="font-size:0.82rem;color:var(--muted)">· recommendation-service</span></div>
+      geo 반경 + 필터(나이/거리/관심사) + 랭킹 + 본 사람 제외(bloom) + Redis 캐시 + 커서 페이지네이션
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="tag">Phase 3</div>
+    <div class="body">
+      <div class="t">오픈채팅 <span style="font-size:0.82rem;color:var(--muted)">· openchat-service + message/fanout 재활용</span></div>
+      방 탐색/검색/입장, 대규모 방 fanout, presence(접속자 수). 방 메타는 <code>openchat-service</code>가 소유하고 대화·전송은 기존 채팅 파이프라인을 그대로 재활용한다.
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="tag">Phase 4</div>
+    <div class="body">
+      <div class="t">부하 · 정합성 증명</div>
+      k6 스와이프 폭주 → 중복 매칭 0 / 인기 유저 hot key / 추천 서빙 부하 + Grafana 대시보드
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="tag">옵션</div>
+    <div class="body">
+      <div class="t">moderation</div>
+      차단 · 신고 · 필터링
+    </div>
+  </div>
+
+  <div class="keynote">
+    Phase 1이 기존 자산(멱등성 · Outbox · CDC · fanout · 채팅)을 가장 많이 재활용하면서 새 도메인의 핵심을 보여줘서,
+    <strong>여기부터 손대는 걸 추천</strong>합니다.
+  </div>
+</section>
+
+<!-- 5. 왜 Kafka -->
+<section id="why-kafka">
+  <h2><span class="num">05</span> 왜 좋아요를 DB에 바로 안 쓰고 Kafka를 거치는가</h2>
+  <p style="color:var(--muted)">면접에서 거의 100% 나오는 질문 — 이 프로젝트 백엔드 깊이 그 자체.</p>
+
+  <h3>"그냥 DB에 바로 쓰면" 뭐가 문제인가</h3>
+  <p>순진한 로직: ① <code>like(A→B)</code> 저장 → ② 역방향 <code>like(B→A)</code> SELECT → ③ 있으면 match 생성.
+  인스턴스가 N개라 A의 요청은 인스턴스1, B의 요청은 인스턴스2가 <strong>동시에</strong> 처리할 수 있다.</p>
+
+  <pre><code>시각   인스턴스1 (A→B 처리)            인스턴스2 (B→A 처리)
+──────────────────────────────────────────────────────────────
+ t1    like(A→B) 저장
+ t2                                    like(B→A) 저장
+ t3    역방향(B→A) 있나? SELECT
+        → 아직 commit 전이라 "없음"
+ t4                                    역방향(A→B) 있나? SELECT
+                                        → "없음"
+ t5    match 안 만듦                    match 안 만듦
+──────────────────────────────────────────────────────────────
+결과: 둘 다 서로 좋아하는데 매칭이 안 됨!  ❌ (유실)</code></pre>
+
+  <div class="keynote">
+    중복 매칭(두 개 생김)은 차라리 <code>UNIQUE(lo,hi)</code>로 막을 수 있는데, 위처럼 둘 다
+    <strong>"상대 거 아직 안 보임"</strong> 상태로 엇갈리면 매칭이 <span class="x">아예 누락</span>된다.
+    두 사람 다 "왜 매칭 안 되지?" 하고 이탈 — 전형적인 <em>read-then-write race condition</em>.
+  </div>
+
+  <h3>해결법들과 트레이드오프</h3>
+  <table>
+    <thead><tr><th>방법</th><th>설명</th><th>문제</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>A — DB 락</b><br>(SELECT FOR UPDATE)</td>
+        <td>쌍(pair)마다 비관적 락 → 한 번에 한 요청만</td>
+        <td>인기 유저에 락 경합 폭발 · 데드락 위험 · 잠글 "기준 행"이 애매 · 대용량에서 안 좋음</td>
+      </tr>
+      <tr>
+        <td><b>B — 분산 락</b><br>(Redis Lock)</td>
+        <td>외부 락으로 직렬화</td>
+        <td>인프라 추가 + 락 획득/해제/만료 관리 복잡</td>
+      </tr>
+      <tr style="background:rgba(63,185,80,0.08)">
+        <td><b>C — Kafka 파티션 직렬화 ★</b><br>(우리 선택)</td>
+        <td>파티션 키 = <code>pair(a,b)</code></td>
+        <td><span class="ok">락 없이 쌍별 단일 작성자(single-writer per pair) 획득</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>방법 C — Kafka가 빛나는 지점</h3>
+  <pre><code>A→B 좋아요  ─┐
+              ├─ pair(A,B) 해시 → 항상 같은 파티션 → 같은 컨슈머 1개
+B→A 좋아요  ─┘
+
+컨슈머 (단일 스레드, 순차 처리):
+  [1] A→B 받음 → 저장. 역방향 없음. 끝.
+  [2] B→A 받음 → 저장. 역방향(A→B) 있음! → 매칭 성사 ✅</code></pre>
+  <p>같은 쌍의 좋아요는 물리적으로 단 하나의 컨슈머 스레드에 순서대로 들어온다. B→A 처리 시점엔 A→B가
+  이미 완전히 커밋돼 보이는 상태 → <strong>엇갈림이 원천적으로 불가능</strong>. 채팅의 <code>channelId</code>
+  순서보장 패턴을 도메인 정합성 문제에 재해석해 적용한 것.</p>
+
+  <h3>Kafka를 거치면 따라오는 보너스</h3>
+  <div class="pill-row">
+    <div class="pill"><b>처리량</b> — 쌍이 다르면 병렬, 같은 쌍만 직렬. 초당 수만 좋아요 소화</div>
+    <div class="pill"><b>디커플링</b> — 접수는 즉시 응답, 무거운 판정은 비동기. 사용자는 안 기다림</div>
+    <div class="pill"><b>hot key 흡수</b> — 인기 유저 폭주를 Kafka가 버퍼(백프레셔)로 흡수</div>
+    <div class="pill"><b>재처리/감사</b> — 버그 고치고 토픽 리플레이해서 매칭 재계산 가능</div>
+  </div>
+
+  <h3>솔직한 트레이드오프 <span style="font-size:0.85rem;color:var(--muted)">(면접 가산점)</span></h3>
+  <ul class="clean">
+    <li><b>지연</b> — 매칭이 "즉시"가 아니라 비동기라 수십~수백 ms 지연 (만남앱에선 무관)</li>
+    <li><b>최종 일관성</b> — 좋아요 직후 1ms 안엔 매칭 판정이 안 끝나 있을 수 있음</li>
+    <li><b>복잡도</b> — Kafka/컨슈머/오프셋 관리 부담</li>
+  </ul>
+  <div class="keynote">
+    <strong>결론:</strong> 만남 도메인은 "즉시성보다 정합성 · 확장성이 중요"하니 이 트레이드오프가 맞아떨어진다.
+    (반대로 결제 승인 같은 동기 응답 필수 도메인이면 다른 선택을 했을 것 — "왜 이 도메인엔 이게 맞는지"까지 말하면 완벽.)
+  </div>
+</section>
+
+<!-- 6. 왜 Outbox + CDC -->
+<section id="why-outbox">
+  <h2><span class="num">06</span> 왜 Outbox + CDC인가 <span style="font-size:0.9rem;color:var(--muted)">— dual-write 문제</span></h2>
+  <p>매칭 성사 직후 해야 할 일이 둘: ① <code>matches</code> 저장(MySQL) ② "매칭됐어요!" 이벤트 발행(Kafka → fanout → WS 푸시 + 채팅방 오픈).
+  문제는 <strong>둘이 서로 다른 시스템</strong>이라는 것.</p>
+
+  <h3>"그냥 순서대로 하면" 뭐가 문제인가</h3>
+  <div class="cmp">
+    <div class="bad">
+      <h4>시나리오 X — DB 성공, Kafka 실패</h4>
+      <p>① <code>matches</code> INSERT + commit → ② <code>kafkaTemplate.send(...)</code> 실패</p>
+      <p>매칭은 DB에 있는데 두 사람은 알림을 못 받음<br>→ "매칭됐다는데 채팅방이 안 열려요" <span class="x">유령 매칭 ❌</span></p>
+    </div>
+    <div class="bad">
+      <h4>시나리오 Y — Kafka 먼저, DB 나중</h4>
+      <p>① Kafka 발행 → ② DB 저장 실패(롤백)</p>
+      <p>알림은 갔는데 DB엔 없음<br>→ "매칭 떴다가 채팅방 들어가니 없어짐" <span class="x">유령 알림 ❌</span></p>
+    </div>
+  </div>
+  <p>두 시스템에 걸친 쓰기는 어느 순서로 해도 중간에 끊기면 어긋난다. 분산 트랜잭션(2PC)은 무겁고 느리고 Kafka 지원도 약함.</p>
+
+  <h3>해결: Outbox + CDC</h3>
+  <div class="keynote"><strong>핵심 아이디어 —</strong> "Kafka에 직접 쏘지 말고, 보낼 이벤트도 그냥 DB에 같이 적어라."</div>
+
+  <h4>1단계 — Outbox: 같은 트랜잭션 안에서 둘 다 DB에 쓰기</h4>
+  <pre><code>BEGIN TRANSACTION
+  INSERT INTO matches (...)                  -- 매칭 본체
+  INSERT INTO outbox (event=MATCH_CREATED,    -- 보낼 이벤트도 같은 DB에
+                      recipients=[A,B], channel_id=...)
+COMMIT</code></pre>
+  <p>둘이 하나의 트랜잭션이라 <strong>같이 성공하거나 같이 실패</strong>. 어긋날 틈이 없음 (MySQL 트랜잭션 원자성).</p>
+
+  <h4>2단계 — CDC(Debezium): 커밋된 로그를 읽어 Kafka로 배달</h4>
+  <pre><code>Debezium이 MySQL binlog(커밋 기록)를 계속 감시
+  → outbox에 새 행 INSERT 감지
+  → 그 행을 match-fanout 토픽으로 발행
+  → fanout-delivery-service가 받아서 양쪽 WS 푸시 + 채팅방 오픈</code></pre>
+  <p>핵심은 Debezium이 <strong>"커밋된 binlog"</strong>를 읽는다는 것. 커밋됐다 = outbox 행이 binlog에 확실히 있다 =
+  언젠가 반드시 Kafka로 나간다. 중간에 서버가 죽어도 재시작하면 못 보낸 지점부터 다시 읽음 → <span class="ok">유실이 구조적으로 불가능</span>.</p>
+
+  <pre><code>순진한 방식:  매칭저장 ──(여기서 죽으면 알림 유실)──> Kafka발행
+Outbox+CDC:   [매칭저장 + 이벤트저장] 한 트랜잭션 ──binlog──> Debezium ──> Kafka발행
+                  ↑ 둘이 운명공동체                       ↑ 죽어도 재개되면 반드시 배달</code></pre>
+
+  <h3>보너스 &amp; 트레이드오프</h3>
+  <ul class="clean">
+    <li><b>보너스</b> — 매칭 컨슈머는 DB 쓰기만 하면 됨(코드 단순·빠름). Kafka가 잠깐 죽어도 매칭 처리는 정상(이벤트는 outbox에 쌓였다 배달). 채팅 메시지에서 쓰던 패턴 그대로 재사용 → 일관된 설계</li>
+    <li><b>at-least-once</b> — Debezium/Kafka가 같은 outbox 이벤트를 드물게 두 번 보낼 수 있음 → 소비자가 멱등해야 함. 우리는 이미 <code>matches</code> UNIQUE + 채팅방 멱등 생성이 있어 두 번 와도 안전 (앞에서 만든 멱등성 자산이 여기서 또 일함)</li>
+    <li><b>비용</b> — 지연 · 복잡도(Kafka Connect 운영 부담)는 있지만, <strong>유실 0 보장</strong>이 그만한 가치</li>
+  </ul>
+</section>
+
+<!-- 7. 한 줄 정리 -->
+<section id="summary">
+  <h2><span class="num">07</span> 한 줄 정리</h2>
+  <div class="summary-line">
+<span class="k">like-relay</span>      : 동시 좋아요를 락 없이 직렬화 → 매칭 판정      <b style="color:var(--accent-2)">(정합성)</b><br>
+<span class="k">matches+outbox</span>  : 매칭과 이벤트를 한 트랜잭션에 → 어긋남 방지   <b style="color:var(--accent-2)">(원자성)</b><br>
+<span class="k">CDC→match-fanout</span>: 커밋된 이벤트를 반드시 배달 → 유실 방지      <b style="color:var(--accent-2)">(신뢰성)</b>
+  </div>
+  <div class="keynote">
+    세 단계가 각각 <strong>정합성 → 원자성 → 신뢰성</strong>을 책임지면서,
+    <em>"동시에 눌러도 / 서버가 죽어도 / Kafka가 흔들려도 매칭과 알림이 절대 어긋나거나 사라지지 않는다"</em>를 보장한다.
+    이 흐름 전체를 입으로 설명할 수 있으면 분산 시스템 면접 한 챕터는 끝.
+  </div>
+</section>
+
+<footer>
+  Social Discovery 설계 문서 · 생성일 2026-06-17 · 개정 2026-07-16 (서비스 구성 정리 · recommendation/openchat 분리)
+</footer>
+
+</div>
+</body>
+</html>

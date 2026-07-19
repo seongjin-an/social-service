@@ -1,0 +1,43 @@
+services:
+  mysql:
+    image: mysql:8.0.33
+    container_name: social-mysql
+    restart: unless-stopped
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --skip-character-set-client-handshake
+#      --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL --server-id=1
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_USER: dev_user
+      MYSQL_PASSWORD: dev_password
+      MYSQL_DATABASE: social
+    ports:
+      - "23306:3306"
+    volumes:
+      - ./.data/mysql:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7
+    container_name: social-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./.data/redis:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redisinsight:
+    image: redis/redisinsight:2.64.1
+    container_name: social-redisinsight
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5540:5540"

@@ -1,0 +1,38 @@
+### 회원가입
+POST http://{{domain}}:{{port}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "tester@test.com",
+  "password": "qwer1234",
+  "name": "테스트유저",
+  "phone": "010-1234-1234",
+  "role": "USER"
+}
+
+### 로그인
+POST http://{{domain}}:{{port}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "tester@test.com",
+  "password": "qwer1234"
+}
+
+### 로그아웃
+POST http://{{domain}}:{{port}}/api/auth/logout
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiI0MDg2MjU0Ny0zMWZjLTQzZjYtYWRmOC0yODAzMjk4NGM3YzAiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQzNTkyOTgsImV4cCI6MTc4NDM2Mjg5OH0.iRq5X_EP_7-YriTCwz1NVAxBa9N2nOP2-BWQbAs1BJwuhnCFz-epNkgzjwoCySEpQs5ty3dUX8hBY3E9i7H1Cw
+
+### 토큰 리프레쉬
+POST http://{{domain}}:{{port}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJlZjc5YTMzMy03YzQ0LTRlYTgtYmFiYS0xYTIwMTA2OTNhZDIiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJpYXQiOjE3ODQzNTkyOTgsImV4cCI6MTc4NDk2NDA5OH0.uKhZaXRUYbUmIomQWleHsxKYjBsoqiV8w0yewClFBSmZmpn7MIO31fIMdXUXaMvS7pvzSFC2nXbKwYCwcbfVYw"
+}
+
+### 내정보
+GET http://{{domain}}:{{port}}/api/users/me
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiI0OTcxMTkyNS1lN2ZmLTQyNDktOTgxOS05MTMyZjNiOGU4Y2QiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQzNjA0ODcsImV4cCI6MTc4NDM2NDA4N30.BXnZUgwQUohzDdvxHXyy9CWf9TrpVVAv_vmHGZZmDbA21UULkLToR-dNBBrYVwm0vmOuQ7sdWHAicZA4EpZ_LA

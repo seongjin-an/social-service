@@ -1,0 +1,53 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  cloud:
+    gateway:
+      routes:
+        # ── user-service ─────────────────────────────────────────────────────────
+        - id: user-service-auth
+          uri: lb://user-service
+          predicates:
+            - Path=/api/auth/**,/api/users/**
+          # 회원가입·로그인은 JWT 필터 없이 통과 (필터 내부에서 permit 처리)
+          filters:
+            - JwtAuthentication
+        - id: message-service
+          uri: lb://message-service
+          predicates:
+            - Path=/api/channels/**
+          filters:
+            - JwtAuthentication
+        - id: connection-service
+          uri: lb:ws://connection-service
+          predicates:
+            - Path=/ws/**
+          filters:
+            - JwtAuthentication
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  secret: ${JWT_SECRET:social-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, gateway, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
