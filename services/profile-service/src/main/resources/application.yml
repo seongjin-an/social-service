@@ -20,6 +20,17 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
 
+  servlet:
+    multipart:
+      max-file-size: ${MAX_FILE_SIZE:5MB}       # 파일 1장 최대
+      max-request-size: ${MAX_REQUEST_SIZE:30MB} # 멀티 업로드 전체 최대
+
+# 프로필 이미지 저장 (데모: 로컬 디스크. 운영은 MinIO/S3 로 교체)
+app:
+  image:
+    base-dir: ${IMAGE_BASE_DIR:./uploads}                       # 실제 파일 저장 위치
+    public-base-url: ${IMAGE_PUBLIC_BASE_URL:http://localhost:8085/files} # imageUrl prefix (WebConfig 가 서빙)
+
 eureka:
   client:
     service-url:

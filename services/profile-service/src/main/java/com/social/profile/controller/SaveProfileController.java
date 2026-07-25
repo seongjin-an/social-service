@@ -2,7 +2,7 @@ package com.social.profile.controller;
 
 import com.social.common.web.Response;
 import com.social.profile.service.ProfileWriteDto;
-import com.social.profile.service.ProfileWriteService;
+import com.social.profile.service.SaveProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RequiredArgsConstructor
 @RestController
-public class ProfileController {
+public class SaveProfileController {
 
-    private final ProfileWriteService profileWriteService;
+    private final SaveProfileService saveProfileService;
 
     @PostMapping("/api/profiles")
     public Response<String> save(
@@ -23,7 +23,7 @@ public class ProfileController {
     ) {
         ProfileWriteDto dto = ProfileWriteDto.of(userId, request);
 
-        String profileId = profileWriteService.saveProfile(dto);
+        String profileId = saveProfileService.saveProfile(dto);
 
         return Response.ok(profileId);
     }

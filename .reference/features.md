@@ -22,7 +22,7 @@
 
 ## Phase 0 — 기반 · 시드  (user-service ♻️ · profile-service 🆕)
 
-> 관심사 분리: user-service = `users`(계정) + `user_locations`(위치) · profile-service = `profile`/`tag`/`profile_tag`/`profile_image`(멀티프로필 1:N). (schema.sql 메모 G)
+> 관심사 분리: user-service = `users`(계정) · profile-service = `profile`/`profile_location`/`tag`/`profile_tag`/`profile_image`(멀티프로필 1:N). **discovery 는 전부 profileId 로 통일.** (schema.sql 메모 G)
 
 ### F0-1. 프로필 확장 조회/수정
 > ⚙️ profile-service(신규) 소유: `profile` / `profile_image` / `tag` / `profile_tag`. **멀티프로필(1:N)** — 한 유저가 프로필 여러 개.
@@ -36,14 +36,14 @@
 - 핵심: 자유입력 지양 → 정규화(`normalized_name`)로 "Java"="java" 통제해야 겹침 계산 유지. 서빙 랭킹은 Redis `SINTERCARD`.
 - ⚠️ 구현 주의(재검증): 요청 태그 `distinct` 로 중복 제거 · 태그 get-or-create 레이스는 `save` 실패 시 `findByNormalizedName` 재조회로 흡수.
 
-### F0-2. 위치 업데이트
-- `PUT  /api/users/me/location` — `{ lat, lng }`
-- 핵심: **`user_locations` UPSERT(영속 백업) + Redis `GEOADD geo:users {userId} {lng} {lat}`(실시간 권위)** 를 함께(멱등).
-  → 위치는 전용 테이블이라 계정/프로필 row 를 안 건드린다. 이 한 방이 P2 추천 반경검색의 입력.
+### F0-2. 위치 업데이트  (profile-service)
+- `PUT  /api/profiles/{profileId}/location` — `{ lat, lng }` (X-User-Id 소유권 검증)
+- 핵심: **`profile_location` UPSERT(영속 백업) + Redis `GEOADD geo:users {profileId} {lng} {lat}`(실시간 권위)** 를 함께(멱등).
+  → 위치는 **프로필당 1개**·전용 테이블이라 profile 본체를 안 건드린다. 이 한 방이 P2 추천 반경검색의 입력.
 
 ### F0-3. 선호(preference) 설정
-- `PUT  /api/users/me/preferences` — `{ prefGender, prefAgeMin, prefAgeMax, prefDistanceKm }` → `profiles` UPSERT
-- 핵심: `profiles` 의 pref_* 컬럼. P2 추천 필터의 기준값.
+- 프로필 생성/수정(F0-1)에 포함 — `profile` 의 `pref_*` 컬럼.
+- 핵심: P2 추천 필터의 기준값.
 
 ### F0-4. 합성 프로필 시더  ★테스트 토대★
 - 스크립트/부트스트랩으로 **수만 명** 생성: 랜덤 위치(특정 도시 반경 분포)·나이·성별·관심사.

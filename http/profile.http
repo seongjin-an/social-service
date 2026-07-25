@@ -1,4 +1,4 @@
-### 회원가입
+### 프로필 생성
 POST http://{{domain}}:{{port}}/api/profiles
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiIwMDdmYWQ0Zi1hMTRhLTQ4MWEtOTI4Zi01YzczYzAzZDNmYmEiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ0NDk0ODMsImV4cCI6MTc4NDQ1MzA4M30.wK-vJdo3jar1u25cRZGN7gmwZVGDH0uHbsrG93OAN1C35tDi-aqx2bNUqVKjUoEXX7055cJB4ZDXYpdsq2-x6g
@@ -13,3 +13,41 @@ Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiIwMDdmYWQ0Zi1hMTRhLTQ4MWEtO
   "prefAgeMax": 22,
   "prefDistanceKm": 5
 }
+
+### 이미지 업로드 (단일)
+# mainIndex 는 쿼리 파라미터로 전달 (파일+텍스트 폼 필드 혼용 시 IntelliJ Content-Length 버그 회피)
+POST http://{{domain}}:{{port}}/api/profiles/{{profileId}}/images?mainIndex=0
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+Content-Type: multipart/form-data; boundary=boundary
+Connection: close
+
+--boundary
+Content-Disposition: form-data; name="images"; filename="profile1.jpg"
+Content-Type: image/jpeg
+
+< ./images/profile1.jpg
+--boundary--
+
+### 이미지 업로드 (여러 장)
+# mainIndex 는 쿼리 파라미터로 전달한다.
+# (IntelliJ HTTP Client 2025.1.x 버그: 파일 파트 + 텍스트 폼 필드를 섞으면
+#  Content-Length 를 작게 계산해 서버에서 "Stream ended unexpectedly" 발생.
+#  @RequestParam 은 쿼리에서도 바인딩되므로 컨트롤러 변경 불필요.)
+POST http://{{domain}}:{{port}}/api/profiles/{{profileId}}/images?mainIndex=1
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+Content-Type: multipart/form-data; boundary=boundary
+Connection: close
+
+--boundary
+Content-Disposition: form-data; name="images"; filename="profile2.jpg"
+Content-Type: image/jpeg
+
+< ./images/profile2.jpg
+--boundary
+Content-Disposition: form-data; name="images"; filename="profile3.jpg"
+Content-Type: image/jpeg
+
+< ./images/profile3.jpg
+--boundary--
+
+

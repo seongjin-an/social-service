@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 @Service
-public class ProfileWriteService {
+public class SaveProfileService {
 
     private final ProfileRepository profileRepository;
     private final TagRepository tagRepository;

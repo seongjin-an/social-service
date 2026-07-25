@@ -14,30 +14,18 @@
 
 
 -- ╭──────────────────────────────────────────────────────────────────────────╮
--- │ user-service ─ users / user_locations   (♻️ users · 🆕 user_locations)      │
--- │  ★ 계정(인증)은 user-service, 프로필(소개)은 profile-service 로 분리 (메모 G) │
+-- │ user-service ─ users   (♻️ 인증/계정만)                                     │
+-- │  ★ 계정(인증)은 user-service, 프로필+위치(탐색)는 profile-service 로 분리 (G) │
 -- ╰──────────────────────────────────────────────────────────────────────────╯
 -- users(기존) 는 인증/신원만: id(BINARY16 PK), email, password_hash, name, phone, role, created_at, updated_at
 --   → name 은 users 에 유지(JWT 클레임·게이트웨이 X-User-Name 의 원천). users 엔 컬럼 추가 없음.
---   → 프로필 테이블(profile/tag/...)은 별도 profile-service 소유. 아래 참조.
-
--- 위치: 초고빈도 쓰기라 계정/프로필과 격리. 실시간 반경검색 권위는 Redis geo:users,
---       이 테이블은 source of truth/마지막 위치 백업. users 와 1:1(PK 공유).
-CREATE TABLE user_locations (
-    user_id     BINARY(16)   NOT NULL COMMENT 'PK 겸 FK · users.id 와 1:1',
-    lat         DECIMAL(9,6) NULL COMMENT '위도 · 위치 갱신 시 Redis GEOADD 와 함께 반영',
-    lng         DECIMAL(9,6) NULL COMMENT '경도',
-    geohash     VARCHAR(12)  NULL COMMENT 'geohash prefix · geohash 방식 탐색 쓸 때만(선택)',
-    created_at  DATETIME     NULL COMMENT '위치 생성 시각',
-    updated_at  DATETIME     NULL COMMENT '마지막 위치 갱신 시각',
-    PRIMARY KEY (user_id)
-);
-CREATE INDEX idx_user_locations_geohash ON user_locations (geohash);  -- geohash 방식 쓸 때만
+--   → 프로필/태그/이미지/위치 테이블은 전부 profile-service 소유. 아래 참조.
 
 
 -- ╭──────────────────────────────────────────────────────────────────────────╮
--- │ profile-service ─ profile / profile_image / tag / profile_tag   (🆕)        │
+-- │ profile-service ─ profile / profile_location / profile_image / tag / profile_tag (🆕)
 -- │  ★ 멀티프로필: 한 user_id 가 profile 을 여러 개 가질 수 있다 (1:N) (메모 G)   │
+-- │  ★ discovery(탐색)에 쓰는 건 전부 profileId 로 키를 잡는다 — 위치도 프로필 단위 │
 -- │  ★ PK 는 모두 UUID v7(앱에서 UuidV7Generator 로 생성) + Persistable(merge회피) │
 -- ╰──────────────────────────────────────────────────────────────────────────╯
 
@@ -57,6 +45,20 @@ CREATE TABLE profile (
     PRIMARY KEY (profile_id)
 );
 CREATE INDEX idx_profile_user ON profile (user_id);   -- "이 유저의 프로필들" 조회
+
+-- 위치: 프로필당 1개(1:1). 초고빈도 쓰기라 profile 본체와 분리. 실시간 반경검색 권위는
+--   Redis geo:users(멤버=profileId), 이 테이블은 source of truth/마지막 위치 백업.
+--   → discovery 전부 profileId 로 통일되어 user→profile 매핑/ fan-out 불필요.
+CREATE TABLE profile_location (
+    profile_id  BINARY(16)   NOT NULL COMMENT 'PK 겸 FK · profile.profile_id 와 1:1',
+    lat         DECIMAL(9,6) NULL COMMENT '위도 · 갱신 시 Redis GEOADD geo:users <profileId> 와 함께 반영',
+    lng         DECIMAL(9,6) NULL COMMENT '경도',
+    geohash     VARCHAR(12)  NULL COMMENT 'geohash prefix · geohash 방식 탐색 쓸 때만(선택)',
+    created_at  DATETIME     NULL COMMENT '위치 생성 시각',
+    updated_at  DATETIME     NULL COMMENT '마지막 위치 갱신 시각',
+    PRIMARY KEY (profile_id)
+);
+CREATE INDEX idx_profile_location_geohash ON profile_location (geohash);  -- geohash 방식 쓸 때만
 
 -- 프로필 사진: 오브젝트 스토리지(S3/MinIO)에 업로드하고 메타/URL 만 저장 (profile 1:N).
 --   앞서 정리한 "이미지는 스토리지, 바디엔 URL" 패턴. 업로드 API 는 별도(도메인 바디와 분리).
@@ -258,14 +260,20 @@ CREATE FULLTEXT INDEX ft_channel_title ON channel (title);   -- 방 제목 검�
 --     주의: openchat-service 가 소유 테이블이 없어져 사실상 탐색 API 파사드가 된다.
 --           → 별도 서비스 유지 vs message-service 모듈로 흡수는 구현하며 재판단(과설계 경계).
 --
---  G) 계정/프로필/위치 분리 + 프로필은 별도 서비스 · 멀티프로필(1:N)   [갱신 2026-07-19]
---     - user-service: users(계정 email/password/name/role) + user_locations(위치).
---     - profile-service(신규): profile / profile_image / tag / profile_tag 소유.
---     - ★ 멀티프로필: 유저 1명이 profile 을 여러 개 가진다(1:N). profile.user_id 에 유니크 없음,
---       profile 자체 UUID PK. → 매칭/추천이 "어느 프로필을 쓰나"(대표/active 개념)는 결정 필요.
+--  G) 계정 vs 프로필+위치 분리 · 멀티프로필(1:N) · discovery=profileId 통일  [갱신 2026-07-19]
+--     - user-service: users(계정 email/password/name/role) 만.
+--     - profile-service(신규): profile / profile_location / profile_image / tag / profile_tag 소유.
+--     - ★ 멀티프로필: 유저 1명이 profile 을 여러 개 가진다(1:N). profile.user_id 유니크 없음, profile 자체 UUID PK.
+--       → 매칭/추천이 "어느 프로필을 쓰나"(대표/active 개념)는 여전히 결정 필요.
+--     - ★ 통일 규칙: "discovery(탐색)에 쓰는 건 전부 profileId 로 키를 잡는다."
+--       위치·태그·이미지·Redis geo·추천피드가 모두 profile 단위 → user→profile 매핑/ fan-out 없음.
+--     - 위치를 user-service 가 아니라 profile-service 에 둔 이유: 위치는 탐색의 핵심 입력이고 탐색은
+--       profile-service 의 일. auth 서비스(user)에 두면 핫패스에 크로스서비스 결합이 생김.
+--       위치 단위는 프로필당 1개(profile_location, profile_id PK) — 규칙 통일 우선. (한 사람 여러 프로필이
+--       같은 좌표를 중복 저장하는 건 사소·가역, 필요 시 유저당 1개로 되돌리기 30분 작업)
 --     - profile 은 birthday(DATE, 일까지)로 정확한 나이/만18세 판정. (초안의 birth_year 대체)
---     - 사진은 profiles 의 JSON 컬럼이 아니라 profile_image 테이블 + 오브젝트 스토리지(S3/MinIO).
---     - 위치 갱신 API 는 user_locations UPSERT + Redis GEOADD 를 함께(멱등). 위치는 추천 서빙 때만 Redis 조회.
+--     - 사진은 JSON 컬럼이 아니라 profile_image 테이블 + 오브젝트 스토리지(S3/MinIO).
+--     - 위치 갱신 API 는 profile_location UPSERT + Redis GEOADD geo:users <profileId> 를 함께(멱등).
 --     - 참고: profile-service 가 users 를 FK 참조하면 크로스 서비스 FK(상단 원칙 위배). 공유 DB라
 --       물리적으론 되지만, 논리적으론 user_id 를 값으로만 들고 FK 는 생략하는 게 원칙에 맞음.
 --
