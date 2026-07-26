@@ -43,6 +43,7 @@ kill_service() {
 
 # ── Spring Boot 서비스 종료 (역순) ───────────────────────────────────────────
 kill_service "frontend"
+kill_service "profile-service"
 kill_service "fanout-delivery-service"
 kill_service "message-service"
 kill_service "connection-service"
@@ -53,7 +54,7 @@ kill_service "eureka-server"
 # ── Docker 인프라 종료 ────────────────────────────────────────────────────────
 if [[ "${STOP_INFRA:-}" == "true" ]]; then
   info "Stopping infrastructure (Docker Compose)..."
-  docker compose -f "$ROOT/infra/compose.yml" down
+  docker compose -f "$ROOT/infra/compose.yaml" down
   success "Infrastructure stopped"
 else
   echo ""

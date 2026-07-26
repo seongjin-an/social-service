@@ -1,0 +1,50 @@
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  application:
+    name: fanout-delivery-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      fetch-max-wait: 10ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+chatting:
+  kafka:
+    topics:
+      connection-instance-prefix: connection-instance-
+    listeners:
+      message:
+        topic: message-fanout
+        group: message-fanout-group
+        concurrency: 3
+        partitions: 3
+        replicasFactor: 1
+      read:
+        topic: read-fanout
+        group: read-fanout-group
+        concurrency: 3
+        partitions: 3
+        replicasFactor: 1

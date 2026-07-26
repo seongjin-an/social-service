@@ -11,9 +11,9 @@ export JAVA_HOME
 JAVA_CMD="$JAVA_HOME/bin/java"
 
 # OTel Java Agent
-OTEL_AGENT_VERSION="2.8.0"
-OTEL_AGENT="$ROOT/infra/otel/opentelemetry-javaagent.jar"
-OTEL_AGENT_URL="https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar"
+#OTEL_AGENT_VERSION="2.8.0"
+#OTEL_AGENT="$ROOT/infra/otel/opentelemetry-javaagent.jar"
+#OTEL_AGENT_URL="https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar"
 
 mkdir -p "$LOGS" "$PIDS" "$ROOT/infra/otel"
 
@@ -60,21 +60,22 @@ start_spring() {
   fi
 
   local OTEL_OPTS=()
-  if [[ -f "$OTEL_AGENT" ]]; then
-    OTEL_OPTS=(
-      "-javaagent:${OTEL_AGENT}"
-      "-Dotel.service.name=${name}"
-      "-Dotel.exporter.otlp.endpoint=http://localhost:4317"
-      "-Dotel.exporter.otlp.protocol=grpc"
-      "-Dotel.traces.exporter=otlp"
-      "-Dotel.metrics.exporter=none"
-      "-Dotel.logs.exporter=otlp"
-      "-Dotel.propagators=tracecontext,baggage"
-    )
-  fi
+#  if [[ -f "$OTEL_AGENT" ]]; then
+#    OTEL_OPTS=(
+#      "-javaagent:${OTEL_AGENT}"
+#      "-Dotel.service.name=${name}"
+#      "-Dotel.exporter.otlp.endpoint=http://localhost:4317"
+#      "-Dotel.exporter.otlp.protocol=grpc"
+#      "-Dotel.traces.exporter=otlp"
+#      "-Dotel.metrics.exporter=none"
+#      "-Dotel.logs.exporter=otlp"
+#      "-Dotel.propagators=tracecontext,baggage"
+#    )
+#  fi
 
   info "Starting $name ..."
-  "$JAVA_CMD" "${OTEL_OPTS[@]}" -jar "$jar" > "$LOGS/$name.log" 2>&1 &
+#  "$JAVA_CMD" "${OTEL_OPTS[@]}" -jar "$jar" > "$LOGS/$name.log" 2>&1 &
+  "$JAVA_CMD" -jar "$jar" > "$LOGS/$name.log" 2>&1 &
   echo $! > "$PIDS/$name.pid"
   wait_port "$name" "$port"
 }
@@ -82,7 +83,7 @@ start_spring() {
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 1. 인프라 (Docker)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COMPOSE_FILE="$ROOT/infra/compose.yml"
+COMPOSE_FILE="$ROOT/infra/compose.yaml"
 if [[ -f "$COMPOSE_FILE" ]]; then
   info "Starting infrastructure (Docker Compose)..."
   docker compose -f "$COMPOSE_FILE" up -d
@@ -90,15 +91,21 @@ if [[ -f "$COMPOSE_FILE" ]]; then
   wait_port "Kafka"  9092  60
   wait_port "Redis"  6379  30
   success "Infrastructure ready"
+
+  # Kafka 토픽 명시 생성 (auto-create 꺼짐 → 필수, 파티션 수 보장)
+  if [[ -f "$ROOT/infra/create-topics.sh" ]]; then
+    info "Creating Kafka topics..."
+    bash "$ROOT/infra/create-topics.sh"
+  fi
 else
-  warn "infra/compose.yml not found — skipping infrastructure startup."
+  warn "infra/compose.yaml not found — skipping infrastructure startup."
   warn "MySQL/Kafka/Redis must already be running, or services will fail to boot."
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 2. 빌드
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-download_otel_agent
+#download_otel_agent
 
 if [[ "${SKIP_BUILD:-}" != "true" ]]; then
   info "Building all modules..."
@@ -109,6 +116,7 @@ if [[ "${SKIP_BUILD:-}" != "true" ]]; then
             :connection-service:bootJar \
             :message-service:bootJar \
             :fanout-delivery-service:bootJar \
+            :profile-service:bootJar \
             -x test --parallel -q
   success "Build complete"
 fi
@@ -122,6 +130,7 @@ USER_JAR=$(find "$ROOT/services/user-service/build/libs"              -name "*.j
 CONN_JAR=$(find "$ROOT/services/connection-service/build/libs"        -name "*.jar" ! -name "*plain*" | head -1)
 MSG_JAR=$(find "$ROOT/services/message-service/build/libs"            -name "*.jar" ! -name "*plain*" | head -1)
 FANOUT_JAR=$(find "$ROOT/services/fanout-delivery-service/build/libs" -name "*.jar" ! -name "*plain*" | head -1)
+PROFILE_JAR=$(find "$ROOT/services/profile-service/build/libs"        -name "*.jar" ! -name "*plain*" | head -1)
 
 start_spring "eureka-server"           "$EUREKA_JAR"  8761
 start_spring "api-gateway"             "$GW_JAR"      8080
@@ -129,6 +138,7 @@ start_spring "user-service"            "$USER_JAR"    8081
 start_spring "connection-service"      "$CONN_JAR"    8082
 start_spring "message-service"         "$MSG_JAR"     8083
 start_spring "fanout-delivery-service" "$FANOUT_JAR"  8084
+start_spring "profile-service"         "$PROFILE_JAR" 8085
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Debezium 커넥터 등록
@@ -143,21 +153,21 @@ fi
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 4. 프론트엔드
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-if [[ ! -d "$ROOT/frontend" ]]; then
-  warn "frontend/ not found — skipping frontend startup."
-elif nc -z localhost 3000 2>/dev/null; then
-  warn "Frontend already running on :3000 — skipping"
-else
-  if [[ ! -f "$ROOT/frontend/.env.local" ]]; then
-    warn "frontend/.env.local not found — copying from .env.local.example"
-    cp "$ROOT/frontend/.env.local.example" "$ROOT/frontend/.env.local"
-  fi
-  info "Starting frontend..."
-  cd "$ROOT/frontend"
-  nohup npm run dev > "$LOGS/frontend.log" 2>&1 &
-  echo $! > "$PIDS/frontend.pid"
-  wait_port "frontend" 3000 90
-fi
+#if [[ ! -d "$ROOT/frontend" ]]; then
+#  warn "frontend/ not found — skipping frontend startup."
+#elif nc -z localhost 3000 2>/dev/null; then
+#  warn "Frontend already running on :3000 — skipping"
+#else
+#  if [[ ! -f "$ROOT/frontend/.env.local" ]]; then
+#    warn "frontend/.env.local not found — copying from .env.local.example"
+#    cp "$ROOT/frontend/.env.local.example" "$ROOT/frontend/.env.local"
+#  fi
+#  info "Starting frontend..."
+#  cd "$ROOT/frontend"
+#  nohup npm run dev > "$LOGS/frontend.log" 2>&1 &
+#  echo $! > "$PIDS/frontend.pid"
+#  wait_port "frontend" 3000 90
+#fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
@@ -165,7 +175,7 @@ success "All services started!"
 echo ""
 echo -e "  ${CYAN}Eureka Dashboard${NC}   http://localhost:8761"
 echo -e "  ${CYAN}API Gateway${NC}        http://localhost:8080"
-echo -e "  ${CYAN}Frontend${NC}           http://localhost:3000"
+#echo -e "  ${CYAN}Frontend${NC}           http://localhost:3000"
 echo -e "  ${CYAN}Kafka UI${NC}           http://localhost:9090"
 echo -e "  ${CYAN}RedisInsight${NC}       http://localhost:5540"
 echo ""

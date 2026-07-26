@@ -18,10 +18,10 @@ val services = listOf(
     "eureka-server",
     "api-gateway",
     "user-service",
-    "profile-service"
-//    "connection-service",
-//    "message-service",
-//    "fanout-delivery-service",
+    "profile-service",
+    "connection-service",
+    "message-service",
+    "fanout-delivery-service",
 )
 
 services.forEach { name ->

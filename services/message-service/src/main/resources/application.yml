@@ -1,0 +1,74 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: message-service
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:23306/social?serverTimezone=UTC&characterEncoding=UTF-8&createDatabaseIfNotExist=true}
+    username: ${DB_USERNAME:dev_user}
+    password: ${DB_PASSWORD:dev_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+chatting:
+  outbox:
+    retention-days: 1   # Debezium 발행 완료 기준 1일 후 정리
+  kafka:
+    topics:
+      message-fanout: message-fanout
+      read-fanout: read-fanout
+    listeners:
+      message:
+        topic: message-relay
+        group: message-relay-group
+        concurrency: 3
+        partitions: 3
+        replicasFactor: 1
+      read:
+        topic: read-relay
+        group: read-relay-group
+        concurrency: 3
+        partitions: 3
+        replicasFactor: 1

@@ -48,19 +48,12 @@ echo -e "${CYAN}  Social Discovery — Service Status${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${GRAY}[ Infrastructure ]${NC}"
-check_docker "MySQL"          "chatting-mysql"        23306
-check_docker "Kafka"          "chatting-kafka"        9092
-check_docker "Kafka Connect"  "kafka-connect"         28083
-check_docker "Kafka UI"       "chatting-kafka-ui"     9090
-check_docker "Redis"          "chatting-redis"        6379
-check_docker "RedisInsight"   "chatting-redisinsight" 5540
-echo ""
-echo -e "  ${GRAY}[ Observability ]${NC}"
-check_docker "OTel Collector" "chatting-otel-collector" 4317
-check_docker "Tempo"          "chatting-tempo"          3200
-check_docker "Loki"           "chatting-loki"           3100
-check_docker "Prometheus"     "chatting-prometheus"     9091
-check_docker "Grafana"        "chatting-grafana"        3001
+check_docker "MySQL"          "social-mysql"        23306
+check_docker "Kafka"          "social-kafka"        9092
+check_docker "Kafka Connect"  "kafka-connect"       28083
+check_docker "Kafka UI"       "social-kafka-ui"     9090
+check_docker "Redis"          "social-redis"        6379
+check_docker "RedisInsight"   "social-redisinsight" 5540
 echo ""
 echo -e "  ${GRAY}[ Spring Boot ]${NC}"
 check "eureka-server"           8761 "http://localhost:8761"
@@ -69,6 +62,7 @@ check "user-service"            8081
 check "connection-service"      8082
 check "message-service"         8083
 check "fanout-delivery-service" 8084
+check "profile-service"         8085
 echo ""
 echo -e "  ${GRAY}[ Frontend ]${NC}"
 check "frontend"           3000 "http://localhost:3000"

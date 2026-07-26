@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOGS="$ROOT/logs"
 
-SERVICES=(eureka-server api-gateway user-service connection-service message-service fanout-delivery-service frontend)
+SERVICES=(eureka-server api-gateway user-service connection-service message-service fanout-delivery-service profile-service frontend)
 
 usage() {
   echo "Usage: $0 <service> [lines]"

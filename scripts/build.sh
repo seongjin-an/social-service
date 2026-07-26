@@ -10,7 +10,7 @@ success() { echo -e "${GREEN}[OK]${NC}    $*"; }
 # 인수 없으면 전체 빌드, 있으면 해당 모듈만
 MODULES=("$@")
 if [[ ${#MODULES[@]} -eq 0 ]]; then
-  MODULES=(eureka-server api-gateway user-service connection-service message-service fanout-delivery-service)
+  MODULES=(eureka-server api-gateway user-service connection-service message-service fanout-delivery-service profile-service)
 fi
 
 cd "$ROOT"
