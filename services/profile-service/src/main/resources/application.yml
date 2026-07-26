@@ -11,6 +11,11 @@ spring:
     password: ${DATASOURCE_PASSWORD:dev_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
@@ -30,6 +35,9 @@ app:
   image:
     base-dir: ${IMAGE_BASE_DIR:./uploads}                       # 실제 파일 저장 위치
     public-base-url: ${IMAGE_PUBLIC_BASE_URL:http://localhost:8085/files} # imageUrl prefix (WebConfig 가 서빙)
+geo:
+  key: "geo:users"
+  duration: 30
 
 eureka:
   client:

@@ -51,3 +51,15 @@ Content-Type: image/jpeg
 --boundary--
 
 
+
+### 위치 업데이트 (F0-2)
+# profile_location UPSERT + Redis GEOADD geo:users. X-User-Id 소유권 검증.
+# (게이트웨이 경유 시 X-User-Id 는 JWT 에서 주입됨 — 직접 호출 테스트용으로 명시)
+PUT http://{{domain}}:{{port}}/api/profiles/{{profileId}}/location
+X-User-Id: 74b9af07-7626-47ed-9d33-edefabebc84a
+Content-Type: application/json
+
+{
+  "lat": 37.501274,
+  "lng": 127.039585
+}
