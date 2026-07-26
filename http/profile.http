@@ -63,3 +63,12 @@ Content-Type: application/json
   "lat": 37.501274,
   "lng": 127.039585
 }
+
+### 태그 피커 - 키워드 검색 (F0-5)
+# 게이트웨이 JwtAuthentication 필터가 /api/tags 도 토큰을 요구 → Authorization 필요
+GET http://{{domain}}:{{port}}/api/tags?q=자바
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+
+### 태그 피커 - 인기 태그 상위 (q 없음)
+GET http://{{domain}}:{{port}}/api/tags
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw

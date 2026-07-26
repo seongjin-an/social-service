@@ -25,7 +25,8 @@ spring:
         - id: profile-service
           uri: lb://profile-service
           predicates:
-            - Path=/api/profiles/**
+            # 콤마로 나열해야 OR. 줄을 나누면 predicate 가 AND 되어 아무 것도 매칭 안 됨.
+            - Path=/api/profiles/**,/api/tags/**
           filters:
             - JwtAuthentication
 

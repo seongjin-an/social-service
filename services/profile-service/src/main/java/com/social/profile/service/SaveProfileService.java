@@ -6,6 +6,7 @@ import com.social.profile.domain.ProfileTagEntity;
 import com.social.profile.domain.TagEntity;
 import com.social.profile.repository.ProfileRepository;
 import com.social.profile.repository.ProfileTagRepository;
+import com.social.profile.repository.TagRedisRepository;
 import com.social.profile.repository.TagRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -27,6 +30,7 @@ public class SaveProfileService {
     private final TagRepository tagRepository;
     private final ProfileTagRepository profileTagRepository;
     private final TagWriter tagWriter;
+    private final TagRedisRepository tagRedisRepository;
 
     @Transactional
     public String saveProfile(ProfileWriteDto dto) {
@@ -61,7 +65,25 @@ public class SaveProfileService {
         // 인기 태그 카운트 — 원자적 +1 (부착 수 반영).
         tagIds.forEach(tagRepository::incrementUsage);
 
+        // Redis SET tags:{profileId} 갱신(P2 SINTERCARD 입력) — DB 커밋 성공 후에만 반영.
+        // 롤백 시 유령 태그 집합이 안 남고, Redis 만 실패하면 다음 저장/수정에서 복구(멱등).
+        registerTagRedisAfterCommit(profileId, tagIds);
+
         return profileStrId;
+    }
+
+    private void registerTagRedisAfterCommit(UUID profileId, List<UUID> tagIds) {
+        List<String> tokens = tagIds.stream().map(UUID::toString).toList();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    tagRedisRepository.replaceTags(profileId, tokens);
+                } catch (Exception e) {
+                    log.warn("tags Redis SET 반영 실패(다음 갱신에서 복구): profileId={}", profileId, e);
+                }
+            }
+        });
     }
 
     /**

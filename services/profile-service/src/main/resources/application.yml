@@ -39,6 +39,12 @@ geo:
   key: "geo:users"
   duration: 30
 
+# 관심사 태그 Redis SET (P2 SINTERCARD 캐시). 원본은 DB profile_tag → 파생 캐시라 TTL 로 관리.
+# ⚠️ TTL 만료로 사라진 후보 집합은 조회 측(P2)에서 rebuild-on-miss(profile_tag 재적재)로 복구해야 한다.
+tags:
+  key-prefix: "tags:"
+  ttl: ${TAGS_TTL:30d}   # SET 만료. Spring Duration 표기(30d, 12h, 30m ...)
+
 eureka:
   client:
     service-url:
