@@ -26,5 +26,12 @@ public interface ProfileImageRepository extends JpaRepository<ProfileImageEntity
       FROM ProfileImageEntity PI
       WHERE PI.profile.profileId IN :profileIds
     """)
-    List<ProfileImageEntity> findByProfileProfileId(@Param("profileIds") List<UUID> profileIds);
+    List<ProfileImageEntity> findByProfileIdIn(@Param("profileIds") List<UUID> profileIds);
+
+    @Query("""
+      SELECT PI
+      FROM ProfileImageEntity PI
+      WHERE PI.profile.profileId = :profileId
+    """)
+    List<ProfileImageEntity> findByProfileId(@Param("profileId") UUID profileId);
 }

@@ -27,7 +27,7 @@ public class ProfileEntity extends BaseEntity implements Persistable<UUID> {
     @Column(name = "profile_id", columnDefinition = "BINARY(16)")
     private UUID profileId;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "BINARY(16)")
     private UUID userId;
 
     @Column(name = "gender")

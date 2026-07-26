@@ -1,6 +1,5 @@
 package com.social.profile.service;
 
-import com.social.profile.controller.ProfileImageResponse;
 import com.social.profile.domain.ProfileEntity;
 import com.social.profile.domain.ProfileImageEntity;
 import com.social.profile.repository.ProfileImageRepository;
@@ -34,7 +33,7 @@ public class SaveProfileImageService {
     private final ProfileImageStorage profileImageStorage;
 
     @Transactional
-    public List<ProfileImageResponse> saveProfileImages(
+    public List<ProfileImageResult> saveProfileImages(
         UUID userId, UUID profileId, List<MultipartFile> images, Integer mainIndex) {
         ProfileEntity profile = loadAndAuthorize(userId, profileId);
         validate(profileId, images, mainIndex);
@@ -75,7 +74,7 @@ public class SaveProfileImageService {
         }
 
         profileImageRepository.saveAll(entities);
-        return entities.stream().map(ProfileImageResponse::from).toList();
+        return entities.stream().map(ProfileImageResult::from).toList();
     }
 
     /** 트랜잭션 롤백 시, 이미 스토리지에 올라간 파일들을 보상 삭제(orphan 방지). */

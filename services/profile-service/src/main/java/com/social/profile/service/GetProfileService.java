@@ -1,9 +1,9 @@
 package com.social.profile.service;
 
-import com.social.profile.controller.ProfileImageResponse;
-import com.social.profile.controller.ProfileResponse;
+import com.ctc.wstx.evt.WstxEventReader;
 import com.social.profile.domain.ProfileEntity;
 import com.social.profile.domain.ProfileImageEntity;
+import com.social.profile.domain.ProfileTagEntity;
 import com.social.profile.repository.ProfileImageRepository;
 import com.social.profile.repository.ProfileRepository;
 import com.social.profile.repository.ProfileTagRepository;
@@ -34,7 +34,7 @@ public class GetProfileService {
      * 메모리에서 profileId 기준으로 묶는다. (bag 두 개를 동시에 fetch join 하면 MultipleBagFetchException 이라
      * 별도 쿼리로 나눈다.) 프록시의 식별자 getter(getProfileId)는 초기화를 유발하지 않아 그룹핑 키로 안전.
      */
-    public List<ProfileResponse> getProfiles(String userId) {
+    public List<ProfileResult> getProfiles(String userId) {
         List<ProfileEntity> profiles = profileRepository.findByUserId(UUID.fromString(userId));
         if (profiles.isEmpty()) {
             return List.of();
@@ -42,23 +42,51 @@ public class GetProfileService {
 
         List<UUID> profileIds = profiles.stream().map(ProfileEntity::getProfileId).toList();
 
-        Map<UUID, List<String>> tagsByProfile = profileTagRepository.findByProfileIdIn(profileIds).stream()
-            .collect(Collectors.groupingBy(
-                pt -> pt.getProfile().getProfileId(),
-                Collectors.mapping(pt -> pt.getTag().getName(), Collectors.toList())));
+        Map<UUID, List<String>> tagsByProfile = mapTagNames(profileTagRepository.findByProfileIdIn(profileIds));
 
-        Map<UUID, List<ProfileImageResponse>> imagesByProfile = profileImageRepository.findByProfileProfileId(profileIds).stream()
-            // 대표 이미지가 먼저 오도록 정렬(카드 썸네일용). groupingBy 는 encounter order 를 보존.
-            .sorted(Comparator.comparing((ProfileImageEntity i) -> Boolean.TRUE.equals(i.getPrimaryImage())).reversed())
-            .collect(Collectors.groupingBy(
-                img -> img.getProfile().getProfileId(),
-                Collectors.mapping(ProfileImageResponse::from, Collectors.toList())));
+        Map<UUID, List<ProfileImageResult>> imagesByProfile = mapProfileImages(profileImageRepository.findByProfileIdIn(profileIds));
+
 
         return profiles.stream()
-            .map(profile -> ProfileResponse.of(
+            .map(profile -> ProfileResult.of(
                 profile,
                 tagsByProfile.getOrDefault(profile.getProfileId(), List.of()),
                 imagesByProfile.getOrDefault(profile.getProfileId(), List.of())))
             .toList();
+    }
+
+    public ProfileResult getProfile(String userId, String profileId) {
+        UUID pi = UUID.fromString(profileId);
+        UUID ui = UUID.fromString(userId);
+        ProfileEntity profile = profileRepository.findByProfileIdAndUserId(pi, ui)
+            .orElseThrow(IllegalArgumentException::new);
+
+        List<String> tags = profileTagRepository.findByProfileId(pi).stream()
+            .map(pt -> pt.getTag().getName()).toList();
+
+        List<ProfileImageResult> profileImages = profileImageRepository.findByProfileId(pi).stream()
+            .map(ProfileImageResult::from).toList();
+
+        return ProfileResult.of(profile, tags, profileImages);
+    }
+
+    //-------------------------------------------------------------------------------------------------
+    // private
+    //-------------------------------------------------------------------------------------------------
+    private Map<UUID, List<String>> mapTagNames(List<ProfileTagEntity> profileTags) {
+        return profileTags.stream()
+            .collect(Collectors.groupingBy(
+                pt -> pt.getProfile().getProfileId(),
+                Collectors.mapping(pt -> pt.getTag().getName(), Collectors.toList())
+            ));
+    }
+
+    private Map<UUID, List<ProfileImageResult>> mapProfileImages(List<ProfileImageEntity> profileImages) {
+        return profileImages.stream()
+            // 대표 이미지가 먼저 오도록 정렬(카드 썸네일용). groupingBy 는 encounter order 를 보존.
+            .sorted(Comparator.comparing((ProfileImageEntity i) -> Boolean.TRUE.equals(i.getPrimaryImage())).reversed())
+            .collect(Collectors.groupingBy(
+                img -> img.getProfile().getProfileId(),
+                Collectors.mapping(ProfileImageResult::from, Collectors.toList())));
     }
 }

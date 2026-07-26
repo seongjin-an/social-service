@@ -1,6 +1,6 @@
 package com.social.profile.controller;
 
-import com.social.profile.domain.ProfileImageEntity;
+import com.social.profile.service.ProfileImageResult;
 import java.util.UUID;
 
 public record ProfileImageResponse(
@@ -8,11 +8,11 @@ public record ProfileImageResponse(
     String imageUrl,
     boolean primaryImage
 ) {
-    public static ProfileImageResponse from(ProfileImageEntity entity) {
+    public static ProfileImageResponse from(ProfileImageResult result) {
         return new ProfileImageResponse(
-            entity.getId(),
-            entity.getImageUrl(),
-            Boolean.TRUE.equals(entity.getPrimaryImage())
+            result.imageId(),
+            result.imageUrl(),
+            result.primaryImage()
         );
     }
 }

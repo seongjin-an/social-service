@@ -1,6 +1,6 @@
 package com.social.profile.controller;
 
-import com.social.profile.domain.ProfileEntity;
+import com.social.profile.service.ProfileResult;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
@@ -23,21 +23,19 @@ public record ProfileResponse(
     List<ProfileImageResponse> images
 ) {
     public static ProfileResponse of(
-        ProfileEntity profile,
-        List<String> tags,
-        List<ProfileImageResponse> images
+        ProfileResult result
     ) {
         return new ProfileResponse(
-            profile.getProfileId(),
-            profile.getGender() == null ? null : profile.getGender().name(),
-            calculateAge(profile.getBirthday()),
-            profile.getBio(),
-            profile.getPrefGender() == null ? null : profile.getPrefGender().name(),
-            profile.getPrefAgeMin(),
-            profile.getPrefAgeMax(),
-            profile.getPrefDistanceKm(),
-            tags,
-            images
+            result.profileId(),
+            result.gender(),
+            result.age(),
+            result.bio(),
+            result.prefGender(),
+            result.prefAgeMin(),
+            result.prefAgeMax(),
+            result.prefDistanceKm(),
+            result.tags(),
+            result.images().stream().map(ProfileImageResponse::from).toList()
         );
     }
 

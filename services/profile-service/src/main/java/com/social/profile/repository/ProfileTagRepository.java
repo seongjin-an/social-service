@@ -12,6 +12,14 @@ public interface ProfileTagRepository extends JpaRepository<ProfileTagEntity, UU
       SELECT PT
       FROM ProfileTagEntity PT
       JOIN FETCH PT.tag
+      WHERE PT.profile.profileId = :profileId
+    """)
+    List<ProfileTagEntity> findByProfileId(UUID profileId);
+
+    @Query("""
+      SELECT PT
+      FROM ProfileTagEntity PT
+      JOIN FETCH PT.tag
       WHERE PT.profile.profileId IN :profileIds
     """)
     List<ProfileTagEntity> findByProfileIdIn(List<UUID> profileIds);

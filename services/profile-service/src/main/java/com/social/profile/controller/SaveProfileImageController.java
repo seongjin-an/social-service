@@ -1,5 +1,6 @@
 package com.social.profile.controller;
 
+import com.social.profile.service.ProfileImageResult;
 import com.social.profile.service.SaveProfileImageService;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +31,8 @@ public class SaveProfileImageController {
         @RequestParam("images") List<MultipartFile> images,
         @RequestParam(value = "mainIndex", required = false) Integer mainIndex
     ) {
-        return saveProfileImageService.saveProfileImages(UUID.fromString(userId), profileId, images, mainIndex);
+        List<ProfileImageResult> profileImageResults = saveProfileImageService.saveProfileImages(
+            UUID.fromString(userId), profileId, images, mainIndex);
+        return profileImageResults.stream().map(ProfileImageResponse::from).toList();
     }
 }
