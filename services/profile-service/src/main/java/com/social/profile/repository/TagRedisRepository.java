@@ -48,4 +48,9 @@ public class TagRedisRepository {
         redisTemplate.opsForSet().add(key, tagTokens.toArray(String[]::new));
         redisTemplate.expire(key, ttl);
     }
+
+    /** DEL tags:{profileId} — 프로필 삭제 시 태그 집합 제거. */
+    public void deleteTags(UUID profileId) {
+        redisTemplate.delete(keyPrefix + profileId);
+    }
 }

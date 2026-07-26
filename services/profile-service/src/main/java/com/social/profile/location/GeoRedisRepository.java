@@ -33,4 +33,9 @@ public class GeoRedisRepository {
     public void updateUserLocation(UUID profileId, double lng, double lat) {
         redisTemplate.opsForGeo().add(GEO_KEY, new Point(lng, lat), profileId.toString());
     }
+
+    /** ZREM geo:users {profileId} — 프로필 삭제 시 반경검색 대상에서 제거. */
+    public void remove(UUID profileId) {
+        redisTemplate.opsForZSet().remove(GEO_KEY, profileId.toString());
+    }
 }

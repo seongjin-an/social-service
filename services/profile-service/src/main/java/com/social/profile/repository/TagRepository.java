@@ -24,4 +24,9 @@ public interface TagRepository extends JpaRepository<TagEntity, UUID> {
     @Modifying
     @Query("update TagEntity t set t.usageCount = t.usageCount + 1 where t.tagId = :tagId")
     void incrementUsage(@Param("tagId") UUID tagId);
+
+    /** 부착 해제 시 원자적 감소. 음수 방지 가드(> 0). */
+    @Modifying
+    @Query("update TagEntity t set t.usageCount = t.usageCount - 1 where t.tagId = :tagId and t.usageCount > 0")
+    void decrementUsage(@Param("tagId") UUID tagId);
 }

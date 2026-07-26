@@ -50,6 +50,9 @@ public class SaveProfileImageService {
             primaryIndex = profileImageRepository.existsPrimaryByProfileId(profileId) ? -1 : 0;
         }
 
+        // 새 이미지는 기존 것들 뒤에 붙인다 — sortOrder 는 현재 개수부터 이어서 부여.
+        int sortBase = (int) profileImageRepository.countByProfileId(profileId);
+
         // 스토리지 쓰기는 DB 트랜잭션으로 롤백이 안 된다(외부 시스템).
         // → 이 트랜잭션이 롤백되면(루프 중 실패 / saveAll 실패 / 커밋 실패) 방금 올린 파일을
         //   보상 삭제하도록 등록. 커밋되면 그대로 둔다.
@@ -70,6 +73,7 @@ public class SaveProfileImageService {
                 .contentType(stored.contentType())
                 .fileSize(stored.fileSize())
                 .primaryImage(primary)
+                .sortOrder(sortBase + i)
                 .build());
         }
 

@@ -50,6 +50,9 @@ public class ProfileImageEntity extends BaseEntity implements Persistable<UUID> 
     @Column(nullable = false)
     private Boolean primaryImage; // 대표 프로필 사진 여부
 
+    @Column(name = "sort_order")
+    private Integer sortOrder; // 카드 표시 순서(오름차순). 업로드 시 부여, reorder API 로 변경.
+
     @Builder
     public ProfileImageEntity(
         ProfileEntity profile,
@@ -59,7 +62,8 @@ public class ProfileImageEntity extends BaseEntity implements Persistable<UUID> 
         String imageUrl,
         String contentType,
         Long fileSize,
-        Boolean primaryImage
+        Boolean primaryImage,
+        Integer sortOrder
     ) {
         this.profileImageId = UuidV7Generator.generate();
         this.profile = profile;
@@ -70,10 +74,15 @@ public class ProfileImageEntity extends BaseEntity implements Persistable<UUID> 
         this.contentType = contentType;
         this.fileSize = fileSize;
         this.primaryImage = primaryImage;
+        this.sortOrder = sortOrder;
     }
 
     public void changePrimary(boolean primary) {
         this.primaryImage = primary;
+    }
+
+    public void changeSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
     }
 
     @Override

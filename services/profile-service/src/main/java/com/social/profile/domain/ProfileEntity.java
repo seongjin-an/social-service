@@ -86,6 +86,18 @@ public class ProfileEntity extends BaseEntity implements Persistable<UUID> {
         }
     }
 
+    /** 프로필 본체의 가변 필드 갱신(태그는 별도 diff 동기화). */
+    public void update(Gender gender, LocalDate birthday, String bio,
+        Gender prefGender, Integer prefAgeMin, Integer prefAgeMax, Integer prefDistanceKm) {
+        this.gender = gender;
+        this.birthday = birthday;
+        this.bio = bio;
+        this.prefGender = prefGender;
+        this.prefAgeMin = prefAgeMin;
+        this.prefAgeMax = prefAgeMax;
+        this.prefDistanceKm = prefDistanceKm;
+    }
+
     @Override
     public UUID getId() {
         return profileId;

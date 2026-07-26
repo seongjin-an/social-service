@@ -72,3 +72,44 @@ Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItO
 ### 태그 피커 - 인기 태그 상위 (q 없음)
 GET http://{{domain}}:{{port}}/api/tags
 Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+
+### 프로필 수정 (P0-D · 전체 교체, 태그 diff 동기화)
+PUT http://{{domain}}:{{port}}/api/profiles/{{profileId}}
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+Content-Type: application/json
+
+{
+  "gender": "MALE",
+  "birthday": "19940225",
+  "bio": "수정된 소개",
+  "tags": ["넷플릭스", "러닝"],
+  "prefGender": "FEMALE",
+  "prefAgeMin": 21,
+  "prefAgeMax": 25,
+  "prefDistanceKm": 7
+}
+
+### 이미지 목록 (P0-E · sortOrder 순)
+GET http://{{domain}}:{{port}}/api/profiles/{{profileId}}/images
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+
+### 대표 이미지 변경 (P0-E · 기존 이미지를 대표로)
+PATCH http://{{domain}}:{{port}}/api/profiles/{{profileId}}/images/{{imageId}}/primary
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+
+### 이미지 순서 변경 (P0-E)
+PATCH http://{{domain}}:{{port}}/api/profiles/{{profileId}}/images/order
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+Content-Type: application/json
+
+{
+  "imageIds": ["{{imageId}}", "{{imageId2}}"]
+}
+
+### 이미지 삭제 (P0-E · 스토리지 파일까지, 대표면 승계)
+DELETE http://{{domain}}:{{port}}/api/profiles/{{profileId}}/images/{{imageId}}
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw
+
+### 프로필 삭제 (P0-D · 이미지·태그·위치·Redis 정리)
+DELETE http://{{domain}}:{{port}}/api/profiles/{{profileId}}
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJqdGkiOiJkYTY0YWRkYi04MzU4LTQwY2ItODRmYy00Zjk0NjVmOGFlNTQiLCJzdWIiOiI3NGI5YWYwNy03NjI2LTQ3ZWQtOWQzMy1lZGVmYWJlYmM4NGEiLCJyb2xlIjoiVVNFUiIsIm5hbWUiOiLthYzsiqTtirjsnKDsoIAiLCJpYXQiOjE3ODQ5Nzk5ODUsImV4cCI6MTc4NDk4MzU4NX0.hxQE6QPcfyiAB94RIj9nnmIIQsepMSR6KOpdrlaQmry6tpp0-SEMwY5COpYKk2foXm8EddlsL2T9nwVh_DdsKw

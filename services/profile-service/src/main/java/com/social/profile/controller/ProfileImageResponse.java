@@ -6,13 +6,15 @@ import java.util.UUID;
 public record ProfileImageResponse(
     UUID imageId,
     String imageUrl,
-    boolean primaryImage
+    boolean primaryImage,
+    Integer sortOrder
 ) {
     public static ProfileImageResponse from(ProfileImageResult result) {
         return new ProfileImageResponse(
             result.imageId(),
             result.imageUrl(),
-            result.primaryImage()
+            result.primaryImage(),
+            result.sortOrder()
         );
     }
 }
