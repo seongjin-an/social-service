@@ -13,8 +13,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class KafkaProducer {
 
-    private final String LIKE_RELAY_TYPE = "LIKE_RELAY_TYPE";
-
     private final String likeRelayTopic;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -35,12 +33,7 @@ public class KafkaProducer {
         UUID userLoId = StringUtils.minUuid(payload.fromUserId(), payload.toUserId());
         UUID userHiId = StringUtils.maxUuid(payload.fromUserId(), payload.toUserId());
         String key = "%s:%s".formatted(userLoId.toString(), userHiId.toString());
-
-        KafkaEnvelope envelope = new KafkaEnvelope(
-            LIKE_RELAY_TYPE,
-            jsonUtil.convertJsonNode(payload).orElseThrow()
-        );
-        String json = jsonUtil.toJson(envelope).orElseThrow();
+        String json = jsonUtil.toJson(payload).orElseThrow();
         kafkaTemplate.send(likeRelayTopic, key, json);
     }
 }

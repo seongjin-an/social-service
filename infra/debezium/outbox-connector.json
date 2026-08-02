@@ -17,6 +17,8 @@
     "snapshot.mode": "no_data",
     "snapshot.locking.mode": "none",
     "tombstones.on.delete": "false",
+    "include.schema.changes": "false",
+    "schema.history.internal.store.only.captured.tables.ddl": "true",
 
     "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
     "schema.history.internal.kafka.topic": "schema-history.social",
