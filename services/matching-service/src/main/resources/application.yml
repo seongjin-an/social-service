@@ -1,0 +1,40 @@
+server:
+  port: ${SERVER_PORT:8086}          # 8085까지 썼으니 8086
+spring:
+  application:
+    name: matching-service
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:23306/social?serverTimezone=UTC&characterEncoding=UTF-8&createDatabaseIfNotExist=true}
+    username: ${DB_USERNAME:dev_user}
+    password: ${DB_PASSWORD:dev_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+
+social:
+  kafka:
+    topics:
+      like-relay: like-relay
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus

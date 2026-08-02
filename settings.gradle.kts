@@ -22,6 +22,7 @@ val services = listOf(
     "connection-service",
     "message-service",
     "fanout-delivery-service",
+    "matching-service"
 )
 
 services.forEach { name ->

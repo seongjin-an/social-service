@@ -117,6 +117,7 @@ if [[ "${SKIP_BUILD:-}" != "true" ]]; then
             :message-service:bootJar \
             :fanout-delivery-service:bootJar \
             :profile-service:bootJar \
+            :matching-service:bootJar \
             -x test --parallel -q
   success "Build complete"
 fi
@@ -131,6 +132,7 @@ CONN_JAR=$(find "$ROOT/services/connection-service/build/libs"        -name "*.j
 MSG_JAR=$(find "$ROOT/services/message-service/build/libs"            -name "*.jar" ! -name "*plain*" | head -1)
 FANOUT_JAR=$(find "$ROOT/services/fanout-delivery-service/build/libs" -name "*.jar" ! -name "*plain*" | head -1)
 PROFILE_JAR=$(find "$ROOT/services/profile-service/build/libs"        -name "*.jar" ! -name "*plain*" | head -1)
+MATCHING_JAR=$(find "$ROOT/services/matching-service/build/libs"      -name "*.jar" ! -name "*plain*" | head -1)
 
 start_spring "eureka-server"           "$EUREKA_JAR"  8761
 start_spring "api-gateway"             "$GW_JAR"      8080
@@ -139,6 +141,7 @@ start_spring "connection-service"      "$CONN_JAR"    8082
 start_spring "message-service"         "$MSG_JAR"     8083
 start_spring "fanout-delivery-service" "$FANOUT_JAR"  8084
 start_spring "profile-service"         "$PROFILE_JAR" 8085
+start_spring "matching-service"        "$MATCHING_JAR" 8086
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Debezium 커넥터 등록

@@ -34,10 +34,21 @@ create read-relay      3 1
 create message-fanout  3 1
 create read-fanout     3 1
 
+# 매칭 파이프라인 토픽 (P1)
+#  - like-relay      : matching REST → matching 판정 컨슈머 (pair 키 직렬화)
+#  - match-created   : matching(outbox) → message-service (DIRECT 채널 생성)
+#  - channel-created : message-service(outbox) → matching (channel_id 백필)
+#  - match-fanout    : matching(outbox) → fanout-service (매칭 알림)
+#  - match-unmatched : matching(outbox) → message-service (채널 CLOSED)
+create like-relay      3 1
+create match-created   3 1
+create channel-created 3 1
+create match-fanout    3 1
+create match-unmatched 3 1
+
 # 참고(여기서 안 만듦): connection-instance-{id} 는 connection-service 가 인스턴스별로
 #   AdminClient 로 동적 생성(retention 120s), Debezium/Connect 내부 토픽은 Connect 가 생성.
-#   matching(P1) 도입 시 like-relay / match-fanout 을 여기에 추가.
 
 echo "[create-topics] 완료. 현재 파이프라인 토픽:"
 docker exec "$CONTAINER" $KT --bootstrap-server "$BOOTSTRAP" --list 2>/dev/null \
-  | grep -E "relay|fanout" | sed 's/^/  /'
+  | grep -E "relay|fanout|match" | sed 's/^/  /'

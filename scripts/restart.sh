@@ -18,7 +18,7 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 usage() {
   echo "Usage: $0 <service> [--skip-build]"
   echo ""
-  echo "Services: eureka-server api-gateway user-service connection-service message-service fanout-delivery-service profile-service frontend"
+  echo "Services: eureka-server api-gateway user-service connection-service message-service fanout-delivery-service profile-service matching-service frontend"
   exit 1
 }
 
@@ -35,6 +35,7 @@ case "$SERVICE" in
   message-service)            PORT=8083 ;;
   fanout-delivery-service)    PORT=8084 ;;
   profile-service)            PORT=8085 ;;
+  matching-service)           PORT=8086 ;;
   frontend)                   PORT=3000 ;;
   *) echo "Unknown service: $SERVICE"; usage ;;
 esac

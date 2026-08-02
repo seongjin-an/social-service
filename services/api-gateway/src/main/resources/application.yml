@@ -36,6 +36,13 @@ spring:
             - Path=/api/channels/**
           filters:
             - JwtAuthentication
+
+        - id: matching-service
+          uri: lb://matching-service
+          predicates:
+            - Path=/api/likes/**,/api/matches/**
+          filters:
+            - JwtAuthentication
         - id: connection-service
           uri: lb:ws://connection-service
           predicates:
