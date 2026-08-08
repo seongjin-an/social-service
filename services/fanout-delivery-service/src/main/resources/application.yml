@@ -48,3 +48,10 @@ chatting:
         concurrency: 3
         partitions: 3
         replicasFactor: 1
+      # 매칭 성사 알림 (matching outbox → Debezium → 여기 → connection-instance-{id})
+      match:
+        topic: match-fanout
+        group: match-fanout-group
+        concurrency: 3
+        partitions: 3
+        replicasFactor: 1

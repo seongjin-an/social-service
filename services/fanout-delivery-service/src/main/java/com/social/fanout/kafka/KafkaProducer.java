@@ -4,6 +4,7 @@ import com.social.common.ContentMessage;
 import com.social.common.JsonUtil;
 import com.social.fanout.kafka.message.KafkaEnvelope;
 import com.social.fanout.kafka.message.out.ContentMessageResponsePayload;
+import com.social.fanout.kafka.message.out.MatchNotificationPayload;
 import com.social.fanout.kafka.message.out.ReadEventPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ public class KafkaProducer {
 
     private static final String CONTENT_MESSAGE_RESPONSE_TYPE = "CONTENT_MESSAGE_RESPONSE";
     private static final String READ_EVENT_TYPE = "READ_EVENT";
+    private static final String MATCH_NOTIFICATION_TYPE = "MATCH_NOTIFICATION";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final JsonUtil jsonUtil;
@@ -44,5 +46,16 @@ public class KafkaProducer {
         );
         String json = jsonUtil.toJson(envelope).orElseThrow();
         kafkaTemplate.send(connectionInstancePrefix + instanceId, recipientUserId, json);
+    }
+
+    /** 매칭 성사 알림 — 메시지 키를 userId 로 둬서 같은 유저의 알림이 순서를 유지한다. */
+    public void sendMatchNotification(String instanceId, String userId, String matchId, Long channelId) {
+        MatchNotificationPayload payload = new MatchNotificationPayload(userId, matchId, channelId);
+        KafkaEnvelope envelope = new KafkaEnvelope(
+            MATCH_NOTIFICATION_TYPE,
+            jsonUtil.convertJsonNode(payload).orElseThrow()
+        );
+        String json = jsonUtil.toJson(envelope).orElseThrow();
+        kafkaTemplate.send(connectionInstancePrefix + instanceId, userId, json);
     }
 }
