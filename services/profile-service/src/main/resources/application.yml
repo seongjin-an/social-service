@@ -50,6 +50,9 @@ tags:
 profile:
   card:
     ttl: ${PROFILE_CARD_TTL:30d}
+  # 추천 선호값 캐시 profile:pref:{userId} (recommendation F2-1 이 본인 것 1건만 GET).
+  pref:
+    ttl: ${PROFILE_PREF_TTL:30d}
 
 eureka:
   client:

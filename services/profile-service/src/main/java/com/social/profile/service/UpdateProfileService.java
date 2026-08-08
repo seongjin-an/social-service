@@ -35,6 +35,7 @@ public class UpdateProfileService {
     private final TagResolver tagResolver;
     private final TagCacheSynchronizer tagCacheSynchronizer;
     private final ProfileCardCacheService profileCardCacheService;
+    private final ProfilePreferenceCacheService profilePreferenceCacheService;
 
     @Transactional
     public void updateProfile(String profileId, ProfileWriteDto dto) {
@@ -54,6 +55,9 @@ public class UpdateProfileService {
 
         // 카드 표시 내용(나이·소개·태그)이 바뀌었으므로 카드 캐시도 갱신.
         profileCardCacheService.refreshAfterCommit(dto.userId(), pid);
+
+        // pref* 도 이 요청으로 교체되므로 선호값 캐시도 함께 갱신(안 하면 피드가 옛 반경으로 돈다).
+        profilePreferenceCacheService.refreshAfterCommit(dto.userId(), pid);
     }
 
     /**

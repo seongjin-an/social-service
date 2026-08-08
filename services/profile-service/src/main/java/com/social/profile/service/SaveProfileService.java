@@ -28,6 +28,7 @@ public class SaveProfileService {
     private final TagResolver tagResolver;
     private final TagCacheSynchronizer tagCacheSynchronizer;
     private final ProfileCardCacheService profileCardCacheService;
+    private final ProfilePreferenceCacheService profilePreferenceCacheService;
 
     @Transactional
     public String saveProfile(ProfileWriteDto dto) {
@@ -41,6 +42,7 @@ public class SaveProfileService {
         if (rawTags == null || rawTags.isEmpty()) {
             // 태그 없는 프로필도 카드는 있어야 한다(매칭 목록에 노출됨).
             profileCardCacheService.refreshAfterCommit(dto.userId(), profileId);
+            profilePreferenceCacheService.refreshAfterCommit(dto.userId(), profileId);
             return profileStrId;
         }
 
@@ -69,6 +71,9 @@ public class SaveProfileService {
 
         // 프로필 카드 캐시 profile:card:{userId} 갱신 (매칭 목록이 MGET 으로 읽음).
         profileCardCacheService.refreshAfterCommit(dto.userId(), profileId);
+
+        // 추천 선호값 캐시 profile:pref:{userId} 갱신 (P2 피드의 반경/성별/나이 필터 입력).
+        profilePreferenceCacheService.refreshAfterCommit(dto.userId(), profileId);
 
         return profileStrId;
     }
