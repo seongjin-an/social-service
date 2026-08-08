@@ -6,15 +6,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 위치 갱신. {@code profile_location} UPSERT(백업) + Redis {@code geo:users} GEOADD(실시간 권위)를 함께 반영.
  *
- * <p>정합성: Redis 반영은 <b>DB 커밋 성공 후(afterCommit)</b>에만 실행한다.
+ * <p>정합성: Redis 반영은 <b>DB 커밋 성공 후(afterCommit)</b>에만 실행한다({@link GeoCacheService}).
  * → DB가 롤백되면 Redis에 유령 좌표가 남지 않는다. Redis 반영만 실패하면 DB엔 최신 좌표가 있으니
  *   다음 위치 핑에서 자연 복구된다(멱등).
+ *
+ * <p>백업 테이블은 프로필 단위(PK=profileId), 반경검색 인덱스는 사람 단위(멤버=userId)다.
+ * 멀티프로필 유저가 프로필을 번갈아 갱신하면 인덱스에는 <b>마지막으로 갱신한 좌표</b>가 남는다 —
+ * 위치는 사람에 하나뿐인 속성이므로 의도된 동작이다.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -23,7 +25,7 @@ public class UpdateLocationService {
 
     private final ProfileRepository profileRepository;
     private final ProfileLocationRepository profileLocationRepository;
-    private final GeoRedisRepository geoRedisRepository;
+    private final GeoCacheService geoCacheService;
 
     @Transactional
     public void updateLocation(String userId, String profileId, double lat, double lng) {
@@ -44,21 +46,7 @@ public class UpdateLocationService {
             .orElseGet(() -> ProfileLocationEntity.of(pid, lat, lng));
         profileLocationRepository.save(location);
 
-        // Redis GEOADD — 커밋 후에만 반영(멱등).
-        registerGeoUpdateAfterCommit(pid, lng, lat);
-    }
-
-    private void registerGeoUpdateAfterCommit(UUID profileId, double lng, double lat) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    geoRedisRepository.updateUserLocation(profileId, lng, lat);
-                } catch (Exception e) {
-                    // Redis 반영 실패해도 DB엔 최신 위치가 있음 → 다음 위치 핑에서 복구.
-                    log.warn("geo:users GEOADD 실패(다음 갱신에서 복구): profileId={}", profileId, e);
-                }
-            }
-        });
+        // Redis GEOADD — 커밋 후에만 반영(멱등). 멤버는 userId.
+        geoCacheService.refreshAfterCommit(uid, lat, lng);
     }
 }

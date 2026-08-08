@@ -2,7 +2,7 @@ package com.social.profile.service;
 
 import com.social.profile.domain.ProfileEntity;
 import com.social.profile.domain.ProfileImageEntity;
-import com.social.profile.location.GeoRedisRepository;
+import com.social.profile.location.GeoCacheService;
 import com.social.profile.location.ProfileLocationRepository;
 import com.social.profile.repository.ProfileImageRepository;
 import com.social.profile.repository.ProfileRepository;
@@ -23,9 +23,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * 프로필 삭제 — 이미지(메타+스토리지)·태그(usage_count 감소)·위치·Redis 인덱스까지 정리.
  *
  * <p>순서: DB 는 자식(image/tag/location) 먼저 지우고 부모(profile) 삭제(FK 안전).
- * 외부 부수효과(스토리지 파일 삭제, geo ZREM, tags DEL)는 <b>커밋 성공 후</b>에만 실행한다.
+ * 외부 부수효과(스토리지 파일 삭제, tags DEL)는 <b>커밋 성공 후</b>에만 실행한다.
  * → DB 롤백 시 파일/인덱스가 먼저 날아가지 않는다. 커밋 후 부수효과가 실패하면 orphan 이 남지만
  *   최종적으로 GC 잡/다음 갱신으로 정리 가능.
+ *
+ * <p>userId 단위 캐시(카드·geo)는 프로필 하나 삭제로 곧장 지울 수 없어 전용 서비스가 판단한다 —
+ * 남은 프로필이 있으면 그걸로 다시 세운다. tags 는 profileId 단위라 그냥 지우면 된다.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -39,9 +42,10 @@ public class DeleteProfileService {
     private final ProfileLocationRepository profileLocationRepository;
     private final TagRepository tagRepository;
     private final ProfileImageStorage profileImageStorage;
-    private final GeoRedisRepository geoRedisRepository;
+    private final GeoCacheService geoCacheService;
     private final TagRedisRepository tagRedisRepository;
     private final ProfileCardCacheService profileCardCacheService;
+    private final ProfilePreferenceCacheService profilePreferenceCacheService;
 
     @Transactional
     public void deleteProfile(String userId, String profileId) {
@@ -77,6 +81,12 @@ public class DeleteProfileService {
         // → 남은 프로필이 있으면 그걸로 다시 세우고, 없으면 제거(둘 다 커밋 후 반영).
         profileCardCacheService.refreshAfterProfileDeleted(uid, pid);
 
+        // geo:users 도 같은 이유로 userId 단위 판단이 필요하다(남은 프로필 좌표로 재구성).
+        geoCacheService.refreshAfterProfileDeleted(uid, pid);
+
+        // 선호값 캐시도 userId 단위 — 남은 프로필 것으로 재구성하거나 제거.
+        profilePreferenceCacheService.refreshAfterProfileDeleted(uid, pid);
+
         // 외부 부수효과는 커밋 후에만.
         registerExternalCleanupAfterCommit(pid, objectKeys);
     }
@@ -91,11 +101,6 @@ public class DeleteProfileService {
                     } catch (Exception e) {
                         log.warn("이미지 파일 삭제 실패(orphan 가능): {}", key, e);
                     }
-                }
-                try {
-                    geoRedisRepository.remove(profileId);
-                } catch (Exception e) {
-                    log.warn("geo:users 제거 실패: profileId={}", profileId, e);
                 }
                 try {
                     tagRedisRepository.deleteTags(profileId);
