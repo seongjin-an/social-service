@@ -27,6 +27,7 @@ public class SaveProfileService {
     private final ProfileTagRepository profileTagRepository;
     private final TagResolver tagResolver;
     private final TagCacheSynchronizer tagCacheSynchronizer;
+    private final ProfileCardCacheService profileCardCacheService;
 
     @Transactional
     public String saveProfile(ProfileWriteDto dto) {
@@ -38,6 +39,8 @@ public class SaveProfileService {
 
         List<String> rawTags = dto.tags();
         if (rawTags == null || rawTags.isEmpty()) {
+            // 태그 없는 프로필도 카드는 있어야 한다(매칭 목록에 노출됨).
+            profileCardCacheService.refreshAfterCommit(dto.userId(), profileId);
             return profileStrId;
         }
 
@@ -63,6 +66,9 @@ public class SaveProfileService {
 
         // Redis SET tags:{profileId} 갱신(P2 SINTERCARD 입력) — DB 커밋 성공 후에만 반영.
         tagCacheSynchronizer.syncAfterCommit(profileId, tagIds);
+
+        // 프로필 카드 캐시 profile:card:{userId} 갱신 (매칭 목록이 MGET 으로 읽음).
+        profileCardCacheService.refreshAfterCommit(dto.userId(), profileId);
 
         return profileStrId;
     }

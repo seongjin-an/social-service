@@ -34,6 +34,7 @@ public class UpdateProfileService {
     private final ProfileTagRepository profileTagRepository;
     private final TagResolver tagResolver;
     private final TagCacheSynchronizer tagCacheSynchronizer;
+    private final ProfileCardCacheService profileCardCacheService;
 
     @Transactional
     public void updateProfile(String profileId, ProfileWriteDto dto) {
@@ -50,6 +51,9 @@ public class UpdateProfileService {
 
         // 최종 태그 집합을 Redis 에 반영(커밋 후, 멱등).
         tagCacheSynchronizer.syncAfterCommit(pid, finalTagIds);
+
+        // 카드 표시 내용(나이·소개·태그)이 바뀌었으므로 카드 캐시도 갱신.
+        profileCardCacheService.refreshAfterCommit(dto.userId(), pid);
     }
 
     /**

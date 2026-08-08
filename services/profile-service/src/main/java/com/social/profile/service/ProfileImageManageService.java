@@ -28,6 +28,7 @@ public class ProfileImageManageService {
     private final ProfileRepository profileRepository;
     private final ProfileImageRepository profileImageRepository;
     private final ProfileImageStorage profileImageStorage;
+    private final ProfileCardCacheService profileCardCacheService;
 
     public List<ProfileImageResult> getImages(String userId, String profileId) {
         UUID pid = authorize(userId, profileId);
@@ -59,6 +60,7 @@ public class ProfileImageManageService {
         }
 
         registerStorageDeleteAfterCommit(objectKey);
+        profileCardCacheService.refreshAfterCommit(UUID.fromString(userId), pid);
     }
 
     /** 기존 이미지를 대표로 지정. 이전 대표는 강등(대표 1장 유지). */
@@ -80,6 +82,8 @@ public class ProfileImageManageService {
             .filter(i -> Boolean.TRUE.equals(i.getPrimaryImage()))
             .forEach(i -> i.changePrimary(false));
         target.changePrimary(true);
+
+        profileCardCacheService.refreshAfterCommit(UUID.fromString(userId), pid);
     }
 
     /** 카드 표시 순서 변경. imageIds 는 프로필의 이미지 전체를 원하는 순서로 나열해야 한다. */
@@ -97,6 +101,9 @@ public class ProfileImageManageService {
         for (int i = 0; i < imageIds.size(); i++) {
             byId.get(imageIds.get(i)).changeSortOrder(i);
         }
+
+        // 대표가 없을 때 카드 썸네일은 "정렬 첫 장"이라 순서 변경도 카드에 영향을 준다.
+        profileCardCacheService.refreshAfterCommit(UUID.fromString(userId), pid);
     }
 
     private UUID authorize(String userId, String profileId) {

@@ -41,6 +41,7 @@ public class DeleteProfileService {
     private final ProfileImageStorage profileImageStorage;
     private final GeoRedisRepository geoRedisRepository;
     private final TagRedisRepository tagRedisRepository;
+    private final ProfileCardCacheService profileCardCacheService;
 
     @Transactional
     public void deleteProfile(String userId, String profileId) {
@@ -71,6 +72,10 @@ public class DeleteProfileService {
 
         // 부모 프로필 삭제.
         profileRepository.delete(profile);
+
+        // 카드 캐시는 userId 단위라 프로필 하나를 지웠다고 무조건 지우면 안 된다
+        // → 남은 프로필이 있으면 그걸로 다시 세우고, 없으면 제거(둘 다 커밋 후 반영).
+        profileCardCacheService.refreshAfterProfileDeleted(uid, pid);
 
         // 외부 부수효과는 커밋 후에만.
         registerExternalCleanupAfterCommit(pid, objectKeys);

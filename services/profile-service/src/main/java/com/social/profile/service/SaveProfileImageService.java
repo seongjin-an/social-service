@@ -31,6 +31,7 @@ public class SaveProfileImageService {
     private final ProfileImageRepository profileImageRepository;
     private final ProfileRepository profileRepository;
     private final ProfileImageStorage profileImageStorage;
+    private final ProfileCardCacheService profileCardCacheService;
 
     @Transactional
     public List<ProfileImageResult> saveProfileImages(
@@ -78,6 +79,10 @@ public class SaveProfileImageService {
         }
 
         profileImageRepository.saveAll(entities);
+
+        // 카드 썸네일(대표 이미지)이 바뀌었을 수 있으므로 카드 캐시 갱신.
+        profileCardCacheService.refreshAfterCommit(userId, profileId);
+
         return entities.stream().map(ProfileImageResult::from).toList();
     }
 

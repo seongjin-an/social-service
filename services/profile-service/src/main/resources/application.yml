@@ -45,6 +45,12 @@ tags:
   key-prefix: "tags:"
   ttl: ${TAGS_TTL:30d}   # SET 만료. Spring Duration 표기(30d, 12h, 30m ...)
 
+# 프로필 카드 캐시 profile:card:{userId} (matching F-M4/F-M6 가 MGET 으로 읽음).
+# 키 접두사는 공용 상수 KeyPrefix.PROFILE_CARD — 읽는 쪽(matching)과 어긋나면 안 되므로 설정으로 빼지 않는다.
+profile:
+  card:
+    ttl: ${PROFILE_CARD_TTL:30d}
+
 eureka:
   client:
     service-url:

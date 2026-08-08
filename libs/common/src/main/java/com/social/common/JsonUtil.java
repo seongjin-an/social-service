@@ -1,6 +1,7 @@
 package com.social.common;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
@@ -13,7 +14,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class JsonUtil {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    /**
+     * 서비스 간 이벤트/캐시 JSON 전용 매퍼 (HTTP 요청 바인딩은 Spring MVC 의 매퍼가 따로 쓴다).
+     *
+     * <p>모르는 필드는 무시한다 — 생산자가 페이로드에 필드를 하나 추가했을 때 소비자가 배포되기 전이라도
+     * 깨지지 않아야 한다(전진 호환). 이게 없으면 필드 추가가 곧 컨슈머 장애다.
+     */
+    private final ObjectMapper objectMapper = new ObjectMapper()
+        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
     public <T> Optional<T> fromJson(String json, Class<T> clazz) {
         try {
