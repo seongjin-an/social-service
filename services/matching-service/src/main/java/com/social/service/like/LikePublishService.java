@@ -1,6 +1,7 @@
 package com.social.service.like;
 
 import com.social.common.StringUtils;
+import com.social.common.exception.BusinessException;
 import com.social.domain.like.LikeType;
 import com.social.kafka.KafkaProducer;
 import com.social.kafka.message.out.LikeRelayPayload;
@@ -20,9 +21,9 @@ public class LikePublishService {
         UUID fromUserId = StringUtils.fromUuid(from);
         UUID toUserId = StringUtils.fromUuid(to);
 
-        // 자기 자신에게 좋아요 금지
+        // 자기 자신에게 좋아요 금지 → 400
         if (fromUserId.equals(toUserId)) {
-            throw new IllegalArgumentException("자기 자신에게는 좋아요를 보낼 수 없습니다");
+            throw BusinessException.badRequest("자기 자신에게는 좋아요를 보낼 수 없습니다");
         }
 
         LikeRelayPayload likeRelayPayload = LikeRelayPayload.of(fromUserId, toUserId, type);
