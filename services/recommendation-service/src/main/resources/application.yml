@@ -1,0 +1,75 @@
+server:
+  port: ${SERVER_PORT:8087}          # 8086(matching)까지 썼으니 8087
+
+spring:
+  application:
+    name: recommendation-service
+
+  # DataSource 없음 — 소유 테이블이 없는 서비스다(입력은 Redis + Kafka).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+# 반경검색 인덱스 — profile-service 가 GEOADD 하는 키와 같아야 한다(멤버 = userId).
+geo:
+  key: "geo:users"
+
+feed:
+  # 선호 반경(profile:pref)이 없거나 범위를 벗어나면 이 값으로 보정한다.
+  # 반경 없는 GEOSEARCH 는 불가능하므로 기본값이 반드시 필요하다.
+  default-radius-km: ${FEED_DEFAULT_RADIUS_KM:30}
+  max-radius-km: ${FEED_MAX_RADIUS_KM:200}
+
+  # 한 번의 스냅샷 계산에서 다룰 최대 후보 수. GEOSEARCH COUNT 로 잘라 카드 MGET 폭발을 막는다.
+  candidate-limit: ${FEED_CANDIDATE_LIMIT:500}
+
+  # 페이지 크기(요청 size 의 상한/기본)
+  default-size: ${FEED_DEFAULT_SIZE:10}
+  max-size: ${FEED_MAX_SIZE:50}
+
+  snapshot:
+    # feed:{userId} 스냅샷 수명. 짧으면 커서가 자주 무효화되고, 길면 새로 들어온 후보가 늦게 보인다.
+    ttl: ${FEED_SNAPSHOT_TTL:10m}
+
+  ranking:
+    # 점수 = distance-weight * (1 - 거리/반경) + tag-weight * min(겹친태그수/tag-saturation, 1)
+    # 가까울수록 · 관심사가 겹칠수록 높다. 합이 1일 필요는 없다(상대 순서만 의미 있음).
+    distance-weight: ${FEED_RANK_DISTANCE_WEIGHT:0.6}
+    tag-weight: ${FEED_RANK_TAG_WEIGHT:0.4}
+    # 태그 겹침 점수가 만점이 되는 개수 — 3개 이상 겹치면 더 겹쳐도 같은 취급.
+    tag-saturation: ${FEED_RANK_TAG_SATURATION:3}
+
+seen:
+  # seen:{userId} 수명. 원본이 없는(재구성 불가) 데이터라 넉넉히 두되 무한은 아니게.
+  ttl: ${SEEN_TTL:90d}
+
+social:
+  kafka:
+    listeners:
+      # 좋아요/패스한 상대를 seen 에 적재. matching 과 다른 컨슈머 그룹이라 서로 간섭하지 않는다.
+      like-relay:
+        topic: like-relay
+        group: recommendation-like-relay-group
+        concurrency: 3
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus

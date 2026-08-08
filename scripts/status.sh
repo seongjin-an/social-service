@@ -64,6 +64,7 @@ check "message-service"         8083
 check "fanout-delivery-service" 8084
 check "profile-service"         8085
 check "matching-service"        8086
+check "recommendation-service"  8087
 echo ""
 echo -e "  ${GRAY}[ Frontend ]${NC}"
 check "frontend"           3000 "http://localhost:3000"
