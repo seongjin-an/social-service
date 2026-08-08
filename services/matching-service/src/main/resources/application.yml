@@ -31,12 +31,19 @@ spring:
 social:
   kafka:
     topics:
-      like-relay: like-relay
-      match-created: match-created
+      like-relay: like-relay          # 직접 발행(판정 전 단계 — outbox 미경유)
+      match-created: match-created    # outbox → Debezium → message-service
+      match-fanout: match-fanout      # outbox → Debezium → fanout-delivery-service
+      match-unmatched: match-unmatched # outbox → Debezium → message-service(채널 CLOSED)
     listeners:
+      # pair(min:max) 키로 발행되므로 partitions == concurrency 여야 쌍별 직렬성이 보장된다.
       like-relay:
         topic: like-relay
         group: matching-like-relay-group
+        concurrency: 3
+      channel-created:
+        topic: channel-created
+        group: matching-channel-created-group
         concurrency: 3
 
 eureka:

@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import java.util.List;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -71,5 +72,32 @@ public class MatchEntity extends BaseEntity {
         this.channelId = channelId;
     }
 
+    /** 언매치 — 목록에서 사라지고, 이벤트로 채널도 닫힌다. 이미 UNMATCHED 면 사실상 no-op(멱등). */
+    public void unmatch() {
+        this.status = MatchStatus.UNMATCHED;
+    }
 
+    public boolean isActive() {
+        return this.status == MatchStatus.ACTIVE;
+    }
+
+    /** 이 매칭의 당사자인가 — 언매치 권한 검사(403)에 쓴다. */
+    public boolean isParticipant(UUID userId) {
+        return userLoId.equals(userId) || userHiId.equals(userId);
+    }
+
+    /** 두 유저 중 내가 아닌 쪽 = 상대. 당사자가 아니면 호출하면 안 된다. */
+    public UUID partnerOf(UUID userId) {
+        if (userLoId.equals(userId)) {
+            return userHiId;
+        }
+        if (userHiId.equals(userId)) {
+            return userLoId;
+        }
+        throw new IllegalArgumentException("매칭 당사자가 아닙니다: " + userId);
+    }
+
+    public List<UUID> participants() {
+        return List.of(userLoId, userHiId);
+    }
 }

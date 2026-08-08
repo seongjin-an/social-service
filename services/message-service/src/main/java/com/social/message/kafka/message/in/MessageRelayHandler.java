@@ -1,10 +1,12 @@
 package com.social.message.kafka.message.in;
 
 import com.social.common.ContentMessage;
+import com.social.message.domain.ChannelStatus;
 import com.social.message.domain.MessageEntity;
 import com.social.message.kafka.message.KafkaMessageProcessor;
 import com.social.message.kafka.message.KafkaMessageType;
 import com.social.message.outbox.OutboxEventWriter;
+import com.social.message.repository.channel.ChannelRepository;
 import com.social.message.repository.message.MessageRepository;
 import com.social.message.util.SnowflakeIdGenerator;
 import java.util.UUID;
@@ -20,6 +22,7 @@ public class MessageRelayHandler implements KafkaMessageProcessor<MessageRelayRe
 
     private final SnowflakeIdGenerator snowflakeIdGenerator;
     private final MessageRepository messageRepository;
+    private final ChannelRepository channelRepository;
     private final OutboxEventWriter outboxEventWriter;
 
     @Override
@@ -35,7 +38,16 @@ public class MessageRelayHandler implements KafkaMessageProcessor<MessageRelayRe
     @Override
     @Transactional
     public void handle(MessageRelayRequest request) {
-        // 0. 멱등성 검사 — 클라이언트 재전송/컨슈머 재처리(at-least-once) 시 중복 저장 방지.
+        // 0-A. CLOSED 채널 전송 가드 — 언매치로 닫힌 방에는 신규 메시지를 저장/발행하지 않는다.
+        //      status 컬럼은 나중에 추가됐으므로 기존 행은 NULL → "CLOSED 일 때만" 거부한다.
+        if (channelRepository.findStatusByChannelId(request.channelId())
+            .filter(ChannelStatus.CLOSED::equals).isPresent()) {
+            log.info("[ClosedChannel] 전송 거부: channelId={}, senderId={}",
+                request.channelId(), request.senderId());
+            return;
+        }
+
+        // 0-B. 멱등성 검사 — 클라이언트 재전송/컨슈머 재처리(at-least-once) 시 중복 저장 방지.
         //    조회-후-저장 사이 race는 (channel_id, client_message_id) 유니크 제약이 최종 차단한다.
         if (request.clientMessageId() != null
             && messageRepository.existsByChannelIdAndClientMessageId(request.channelId(), request.clientMessageId())) {

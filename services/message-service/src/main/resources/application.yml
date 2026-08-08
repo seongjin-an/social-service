@@ -59,6 +59,7 @@ chatting:
     topics:
       message-fanout: message-fanout
       read-fanout: read-fanout
+      channel-created: channel-created   # 매칭 Saga 2단계 (→ matching 이 channel_id 백필)
     listeners:
       message:
         topic: message-relay
@@ -72,3 +73,12 @@ chatting:
         concurrency: 3
         partitions: 3
         replicasFactor: 1
+      # 매칭 Saga 수신 — 파티션 키가 matchId 라 같은 매칭 이벤트는 한 스레드에서 순서대로 처리된다.
+      match-created:
+        topic: match-created
+        group: message-match-created-group
+        concurrency: 3
+      match-unmatched:
+        topic: match-unmatched
+        group: message-match-unmatched-group
+        concurrency: 3
