@@ -1,0 +1,95 @@
+### ─────────────────────────────────────────────────────────────────────────────
+### 매칭 서비스 (P1)
+###
+### 게이트웨이가 JWT → X-User-Id 헤더를 주입하므로 Authorization 만 넣으면 된다.
+### {{tokenA}} / {{tokenB}} 는 서로 다른 유저의 액세스 토큰으로 채워 쓴다.
+### (user.http 의 로그인으로 발급 → http-client.env.json 또는 아래 값을 직접 교체)
+###
+### 전체 흐름 확인 순서
+###   1) A → B 좋아요 (202)          : 아직 매칭 없음
+###   2) B → A 좋아요 (202)          : 매칭 성사 → 채널 자동 생성 → 양쪽 WS 알림
+###   3) A 매칭 목록                  : matchId + channelId + 상대 카드
+###   4) 채팅 시작 (message-service)  : /api/channels/me 에 DIRECT 채널 노출
+###   5) A 언매치                     : 목록에서 사라지고 채널 CLOSED
+### ─────────────────────────────────────────────────────────────────────────────
+
+@tokenA = PUT_ACCESS_TOKEN_OF_USER_A
+@tokenB = PUT_ACCESS_TOKEN_OF_USER_B
+@userBId = 66666666-6666-6666-6666-666666666666
+@userAId = 55555555-5555-5555-5555-555555555555
+
+### 1. A → B 좋아요 (202 Accepted · 판정은 비동기)
+POST http://{{domain}}:{{port}}/api/likes
+Content-Type: application/json
+Authorization: Bearer {{tokenA}}
+
+{
+  "toUserId": "{{userBId}}",
+  "likeType": "LIKE"
+}
+
+### 2. B → A 좋아요 → 여기서 매칭 성사 (matches 1건 + DIRECT 채널 + 알림)
+POST http://{{domain}}:{{port}}/api/likes
+Content-Type: application/json
+Authorization: Bearer {{tokenB}}
+
+{
+  "toUserId": "{{userAId}}",
+  "likeType": "LIKE"
+}
+
+### 3. 슈퍼 좋아요 (LIKE 와 동일하게 판정 대상)
+POST http://{{domain}}:{{port}}/api/likes
+Content-Type: application/json
+Authorization: Bearer {{tokenA}}
+
+{
+  "toUserId": "{{userBId}}",
+  "likeType": "SUPER"
+}
+
+### 4. 패스 (저장만 · 매칭 판정 제외)
+POST http://{{domain}}:{{port}}/api/likes
+Content-Type: application/json
+Authorization: Bearer {{tokenA}}
+
+{
+  "toUserId": "{{userBId}}",
+  "likeType": "PASS"
+}
+
+### 5. [실패 케이스] 자기 자신에게 좋아요 → 400
+POST http://{{domain}}:{{port}}/api/likes
+Content-Type: application/json
+Authorization: Bearer {{tokenA}}
+
+{
+  "toUserId": "{{userAId}}",
+  "likeType": "LIKE"
+}
+
+### 6. 내 매칭 목록 (F-M4)
+# 응답: [{ matchId, channelId, partner: {userId, profileId, age, gender, bio, tags, imageUrl}, matchedAt }]
+# channelId 가 null 이면 Saga 백필 전(성사 직후 아주 짧은 순간) → "채팅방 준비 중"
+# partner 필드가 userId 만 채워져 있으면 프로필 카드 캐시 미스(상대가 프로필을 안 만들었거나 TTL 만료)
+GET http://{{domain}}:{{port}}/api/matches
+Authorization: Bearer {{tokenA}}
+
+### 7. 받은 좋아요 (F-M6 · 나를 좋아했지만 아직 매칭 안 된 사람)
+GET http://{{domain}}:{{port}}/api/likes/received
+Authorization: Bearer {{tokenB}}
+
+### 8. 언매치 (F-M5) — matchId 는 6번 응답에서 복사
+# 당사자만 가능(403), 이미 해제면 멱등하게 200, 없는 matchId 는 404
+@matchId = PUT_MATCH_ID_FROM_LIST
+DELETE http://{{domain}}:{{port}}/api/matches/{{matchId}}
+Authorization: Bearer {{tokenA}}
+
+### 9. 언매치 후 목록 재조회 → 8번 매칭이 사라져야 한다
+GET http://{{domain}}:{{port}}/api/matches
+Authorization: Bearer {{tokenA}}
+
+### 10. 자동 생성된 DIRECT 채널 확인 (message-service)
+# title 은 빈 문자열 — 클라이언트가 상대 이름으로 표시한다
+GET http://{{domain}}:{{port}}/api/channels/me
+Authorization: Bearer {{tokenA}}
