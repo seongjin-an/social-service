@@ -8,6 +8,11 @@ spring:
     username: ${DB_USERNAME:dev_user}
     password: ${DB_PASSWORD:dev_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
+  # 카드 캐시(profile:card)를 MGET 으로 읽는다 — 없으면 localhost 기본값으로 붙어 컨테이너에서 깨진다.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   jpa:
     hibernate:
       ddl-auto: update
