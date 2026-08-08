@@ -1,16 +1,11 @@
 package com.social.fanout.kafka.message.in;
 
-import com.social.common.KeyPrefix;
 import com.social.fanout.kafka.KafkaProducer;
 import com.social.fanout.kafka.message.KafkaMessageProcessor;
 import com.social.fanout.kafka.message.KafkaMessageType;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.social.common.JsonUtil;
-import java.util.HashSet;
-import java.util.Set;
+import com.social.fanout.routing.ConnectionRouteResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -19,8 +14,7 @@ import org.springframework.stereotype.Component;
 public class ReadFanoutHandler implements KafkaMessageProcessor<ReadFanoutRequest> {
 
     private final KafkaProducer kafkaProducer;
-    private final StringRedisTemplate redisTemplate;
-    private final JsonUtil jsonUtil;
+    private final ConnectionRouteResolver connectionRouteResolver;
 
     @Override
     public KafkaMessageType getSupportedType() {
@@ -39,27 +33,8 @@ public class ReadFanoutHandler implements KafkaMessageProcessor<ReadFanoutReques
     }
 
     private void route(String recipientUserId, Long channelId, String readerId, Long lastReadMessageId) {
-        String userKey = KeyPrefix.WEBSOCKET_USER + recipientUserId;
-        Set<String> connectionKeys = redisTemplate.opsForSet().members(userKey);
-        if (connectionKeys == null || connectionKeys.isEmpty()) {
-            return;
-        }
-
-        Set<String> instanceIds = new HashSet<>();
-        for (String connectionKey : connectionKeys) {
-            String connectionInfoJson = redisTemplate.opsForValue()
-                .get(KeyPrefix.WEBSOCKET_CONNECTION + connectionKey);
-            if (connectionInfoJson == null) {
-                redisTemplate.opsForSet().remove(userKey, connectionKey);
-                continue;
-            }
-            jsonUtil.fromJson(connectionInfoJson, JsonNode.class)
-                .map(node -> node.get("instanceId"))
-                .map(JsonNode::asText)
-                .ifPresent(instanceIds::add);
-        }
-
-        instanceIds.forEach(instanceId ->
+        // 읽음 이벤트는 오프라인이면 보낼 필요가 없다(다음 조회 때 unreadCount 로 반영됨).
+        connectionRouteResolver.resolve(recipientUserId).instanceIds().forEach(instanceId ->
             kafkaProducer.sendReadEvent(instanceId, recipientUserId, channelId, readerId, lastReadMessageId));
     }
 }
