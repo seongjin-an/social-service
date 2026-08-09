@@ -12,6 +12,20 @@ spring:
 
   cloud:
     gateway:
+      # 브라우저 프론트(:3000) → 게이트웨이(:8080) 크로스 오리진 허용.
+      # 없으면 preflight 단계에서 전부 막혀 프론트가 아무 API 도 못 부른다.
+      # 토큰을 Authorization 헤더로 보내므로 쿠키(allow-credentials)는 필요 없다.
+      globalcors:
+        add-to-simple-url-handler-mapping: true   # 라우트에 안 걸리는 요청의 preflight 도 처리
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:[*]"
+              - "http://127.0.0.1:[*]"
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowedHeaders: "*"
+            exposedHeaders: [X-Trace-Id]
+            maxAge: 3600
       routes:
         # ── user-service ─────────────────────────────────────────────────────────
         - id: user-service-auth

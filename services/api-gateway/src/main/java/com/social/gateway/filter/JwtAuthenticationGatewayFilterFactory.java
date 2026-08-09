@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.cors.reactive.CorsUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -54,6 +55,12 @@ public class JwtAuthenticationGatewayFilterFactory
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
+            // CORS preflight 는 브라우저가 Authorization 없이 보낸다 → 인증 대상이 아니다.
+            // 여기서 걸러주지 않으면 프론트의 모든 요청이 preflight 401 로 죽는다.
+            if (CorsUtils.isPreFlightRequest(exchange.getRequest())) {
+                return chain.filter(exchange);
+            }
+
             String path = exchange.getRequest().getURI().getPath();
 
             if (isPermitAll(path)) {
