@@ -159,21 +159,25 @@ fi
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 4. 프론트엔드
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#if [[ ! -d "$ROOT/frontend" ]]; then
-#  warn "frontend/ not found — skipping frontend startup."
-#elif nc -z localhost 3000 2>/dev/null; then
-#  warn "Frontend already running on :3000 — skipping"
-#else
-#  if [[ ! -f "$ROOT/frontend/.env.local" ]]; then
-#    warn "frontend/.env.local not found — copying from .env.local.example"
-#    cp "$ROOT/frontend/.env.local.example" "$ROOT/frontend/.env.local"
-#  fi
-#  info "Starting frontend..."
-#  cd "$ROOT/frontend"
-#  nohup npm run dev > "$LOGS/frontend.log" 2>&1 &
-#  echo $! > "$PIDS/frontend.pid"
-#  wait_port "frontend" 3000 90
-#fi
+if [[ ! -d "$ROOT/frontend" ]]; then
+  warn "frontend/ not found — skipping frontend startup."
+elif nc -z localhost 3000 2>/dev/null; then
+  warn "Frontend already running on :3000 — skipping"
+else
+  if [[ ! -f "$ROOT/frontend/.env.local" ]]; then
+    warn "frontend/.env.local not found — copying from .env.local.example"
+    cp "$ROOT/frontend/.env.local.example" "$ROOT/frontend/.env.local"
+  fi
+  if [[ ! -d "$ROOT/frontend/node_modules" ]]; then
+    info "Installing frontend dependencies..."
+    (cd "$ROOT/frontend" && npm install --silent)
+  fi
+  info "Starting frontend..."
+  cd "$ROOT/frontend"
+  nohup npm run dev > "$LOGS/frontend.log" 2>&1 &
+  echo $! > "$PIDS/frontend.pid"
+  wait_port "frontend" 3000 90
+fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
@@ -181,7 +185,7 @@ success "All services started!"
 echo ""
 echo -e "  ${CYAN}Eureka Dashboard${NC}   http://localhost:8761"
 echo -e "  ${CYAN}API Gateway${NC}        http://localhost:8080"
-#echo -e "  ${CYAN}Frontend${NC}           http://localhost:3000"
+echo -e "  ${CYAN}Frontend${NC}           http://localhost:3000"
 echo -e "  ${CYAN}Kafka UI${NC}           http://localhost:9090"
 echo -e "  ${CYAN}RedisInsight${NC}       http://localhost:5540"
 echo ""
