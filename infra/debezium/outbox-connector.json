@@ -3,29 +3,23 @@
   "config": {
     "connector.class": "io.debezium.connector.mysql.MySqlConnector",
     "tasks.max": "1",
-
     "database.hostname": "mysql",
     "database.port": "3306",
     "database.user": "debezium",
     "database.password": "dbz_pw",
     "database.server.id": "184054",
     "topic.prefix": "social",
-
     "database.include.list": "social",
     "table.include.list": "social.outbox",
-
     "snapshot.mode": "no_data",
     "snapshot.locking.mode": "none",
     "tombstones.on.delete": "false",
     "include.schema.changes": "false",
     "schema.history.internal.store.only.captured.tables.ddl": "true",
-
     "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
     "schema.history.internal.kafka.topic": "schema-history.social",
-
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "org.apache.kafka.connect.storage.StringConverter",
-
     "transforms": "outbox",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
     "transforms.outbox.table.field.event.id": "event_id",
@@ -33,6 +27,7 @@
     "transforms.outbox.table.field.event.payload": "payload",
     "transforms.outbox.table.field.event.timestamp": "created_at",
     "transforms.outbox.route.by.field": "destination_topic",
-    "transforms.outbox.route.topic.replacement": "${routedByValue}"
+    "transforms.outbox.route.topic.replacement": "${routedByValue}",
+    "schema.history.internal.skip.unparseable.ddl": "true"
   }
 }
