@@ -90,6 +90,61 @@ export interface ReceivedLikeView {
   likedAt: string;
 }
 
+// ── 오픈채팅 게시판 (message-service · P3) ───────────────────────────────────
+export type RoomCategory = "HOBBY" | "SPORTS" | "FOOD" | "MUSIC" | "TRAVEL" | "ETC";
+
+/** 게시판 탭. 서버 enum(RoomCategory)과 값이 1:1 이어야 한다. */
+export const ROOM_CATEGORIES: { value: RoomCategory; label: string; emoji: string }[] = [
+  { value: "HOBBY", label: "취미", emoji: "🎨" },
+  { value: "SPORTS", label: "운동", emoji: "🏃" },
+  { value: "FOOD", label: "맛집", emoji: "🍜" },
+  { value: "MUSIC", label: "음악", emoji: "🎸" },
+  { value: "TRAVEL", label: "여행", emoji: "✈️" },
+  { value: "ETC", label: "기타", emoji: "💬" },
+];
+
+export function categoryLabel(category: RoomCategory | null): string {
+  return ROOM_CATEGORIES.find((c) => c.value === category)?.label ?? "기타";
+}
+
+export function categoryEmoji(category: RoomCategory | null): string {
+  return ROOM_CATEGORIES.find((c) => c.value === category)?.emoji ?? "💬";
+}
+
+export interface OpenRoom {
+  /** 오픈방도 channel 이다 — 이 값이 그대로 채팅 채널 id 다. */
+  channelId: number;
+  title: string;
+  category: RoomCategory | null;
+  ownerId: string | null;
+  maxMembers: number;
+  /** 가입 인원. 정원 판정의 기준. */
+  memberCount: number;
+  /** 지금 WS 로 붙어 있는 인원. 근사값(연결 TTL 만큼 늦게 줄어든다). */
+  onlineCount: number;
+  joined: boolean;
+  owner: boolean;
+  createdAt: string;
+}
+
+export interface OpenRoomPage {
+  items: OpenRoom[];
+  /** channelId 키셋 커서. null 이면 끝. 피드 커서와 달리 버전이 없다. */
+  nextCursor: number | null;
+}
+
+export interface RoomPresence {
+  channelId: number;
+  memberCount: number;
+  onlineCount: number;
+}
+
+export interface CreateRoomRequest {
+  title: string;
+  category: RoomCategory;
+  maxMembers: number;
+}
+
 // ── 채팅 (message-service) ───────────────────────────────────────────────────
 export interface Channel {
   channelId: number;

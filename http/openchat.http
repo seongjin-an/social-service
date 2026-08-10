@@ -1,0 +1,134 @@
+### 오픈채팅 게시판 (P3) — message-service, 게이트웨이 경유
+### 대화 자체는 WS(SEND_MESSAGE)와 기존 히스토리 API 를 쓴다. 여기 있는 건 "방"을 다루는 API 뿐이다.
+
+@gateway = http://localhost:8080
+@token = {{login.response.body.data.accessToken}}
+@token2 = {{login2.response.body.data.accessToken}}
+
+### 로그인 (방장)
+# @name login
+POST {{gateway}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo1@test.com",
+  "password": "password123"
+}
+
+### 로그인 (입장자)
+# @name login2
+POST {{gateway}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo2@test.com",
+  "password": "password123"
+}
+
+
+### ─────────────────────────────────────────────────────────────────────────
+### F3-1. 방 생성 — 만든 사람이 방장이자 첫 멤버(memberCount=1)
+### category: HOBBY | SPORTS | FOOD | MUSIC | TRAVEL | ETC
+### maxMembers: 2~500
+# @name createRoom
+POST {{gateway}}/api/rooms
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "한강 러닝 같이 해요",
+  "category": "SPORTS",
+  "maxMembers": 30
+}
+
+@roomId = {{createRoom.response.body.data.channelId}}
+
+
+### F3-2. 방 탐색 — 전체 탭
+GET {{gateway}}/api/rooms?size=20
+Authorization: Bearer {{token2}}
+
+### F3-2. 카테고리 탭
+GET {{gateway}}/api/rooms?category=SPORTS&size=20
+Authorization: Bearer {{token2}}
+
+### F3-2. 제목 검색 (LIKE '%q%')
+GET {{gateway}}/api/rooms?q=러닝
+Authorization: Bearer {{token2}}
+
+### F3-2. 다음 페이지 — cursor 는 직전 응답의 nextCursor(= 마지막 방의 channelId)
+GET {{gateway}}/api/rooms?size=2&cursor=9999
+Authorization: Bearer {{token2}}
+
+### 내가 참여한 방
+GET {{gateway}}/api/rooms/me
+Authorization: Bearer {{token}}
+
+### 방 상세 — joined / owner 가 뷰어 기준으로 채워진다
+GET {{gateway}}/api/rooms/{{roomId}}
+Authorization: Bearer {{token2}}
+
+### F3-4. presence — memberCount(가입) vs onlineCount(지금 WS 접속, 근사값)
+GET {{gateway}}/api/rooms/{{roomId}}/presence
+Authorization: Bearer {{token2}}
+
+
+### ─────────────────────────────────────────────────────────────────────────
+### F3-3. 입장 — 멱등. 두 번 눌러도 memberCount 가 늘지 않는다.
+POST {{gateway}}/api/rooms/{{roomId}}/join
+Authorization: Bearer {{token2}}
+
+### 입장 재시도 (멱등 확인 — memberCount 그대로여야 한다)
+POST {{gateway}}/api/rooms/{{roomId}}/join
+Authorization: Bearer {{token2}}
+
+### F3-3. 퇴장 — 204. 멤버가 아니어도 204(멱등).
+### 방장이 나가면 최초 입장자에게 방장이 넘어가고, 아무도 안 남으면 방이 닫힌다.
+DELETE {{gateway}}/api/rooms/{{roomId}}/leave
+Authorization: Bearer {{token2}}
+
+
+### ─────────────────────────────────────────────────────────────────────────
+### 대화는 오픈방 전용 API 가 없다 — 1:1 채팅과 같은 것을 쓴다.
+
+### 히스토리 (오픈방도 동일 경로)
+GET {{gateway}}/api/channels/{{roomId}}/messages?size=50
+Authorization: Bearer {{token}}
+
+### 전송은 WS 로만 — REST 엔드포인트가 없다.
+### ws://localhost:8080/ws?token={{token}}
+### → {"type":"SEND_MESSAGE","payload":{"channelId":<roomId>,"content":"안녕하세요","clientMessageId":"<uuid>"}}
+### ← 방 멤버 전원에게 {"type":"CONTENT_MESSAGE","payload":{...}}
+###
+### 입장하지 않은 사람이 channelId 만 넣어 보내면 MessageRelayHandler 의 멤버십 가드가
+### 조용히 버린다(로그: [NotAMember] 전송 거부).
+
+
+### ─────────────────────────────────────────────────────────────────────────
+### 에러 케이스
+
+### 없는 방 → 404
+GET {{gateway}}/api/rooms/999999
+Authorization: Bearer {{token}}
+
+### DIRECT(1:1 매칭방) 을 오픈방 API 로 만지기 → 404 (존재 여부도 흘리지 않는다)
+POST {{gateway}}/api/rooms/1/join
+Authorization: Bearer {{token}}
+
+### 정원 미달(<2) → 400
+POST {{gateway}}/api/rooms
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "혼자 있는 방",
+  "category": "ETC",
+  "maxMembers": 1
+}
+
+### 없는 카테고리 → 400
+GET {{gateway}}/api/rooms?category=NOPE
+Authorization: Bearer {{token}}
+
+### 토큰 없이 → 401
+GET {{gateway}}/api/rooms

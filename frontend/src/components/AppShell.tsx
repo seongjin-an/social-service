@@ -10,6 +10,7 @@ const NAV = [
   { href: "/feed", label: "탐색" },
   { href: "/matches", label: "매칭" },
   { href: "/likes", label: "받은 좋아요" },
+  { href: "/rooms", label: "오픈채팅" },
 ];
 
 /** 로그인 이후 화면들의 공통 껍데기 — 네비 + 연결 상태 표시. */
@@ -36,7 +37,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={[
                   "rounded-lg px-3 py-1.5 transition",
-                  pathname === item.href
+                  // 하위 경로(/rooms/12)에서도 탭이 켜져 있어야 한다
+                  pathname === item.href || pathname.startsWith(`${item.href}/`)
                     ? "bg-rose-500 text-white"
                     : "hover:bg-black/5 dark:hover:bg-white/10",
                 ].join(" ")}

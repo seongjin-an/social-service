@@ -3,6 +3,8 @@ package com.social.message.domain;
 import com.social.message.domain.ChannelMemberEntity.ChannelMemberEntityId;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
@@ -35,12 +37,33 @@ public class ChannelMemberEntity {
 
     private LocalDateTime joinedAt;
 
+    /** OPEN 방에서만 OWNER|MEMBER. DIRECT 는 NULL. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 10)
+    private ChannelMemberRole role;
+
+    /** DIRECT 채널 멤버 — 역할 개념이 없다. */
     public static ChannelMemberEntity create(Long channelId, UUID userId) {
-        return new ChannelMemberEntity(channelId, userId, null, LocalDateTime.now());
+        return new ChannelMemberEntity(channelId, userId, null, LocalDateTime.now(), null);
+    }
+
+    public static ChannelMemberEntity owner(Long channelId, UUID userId) {
+        return new ChannelMemberEntity(channelId, userId, null, LocalDateTime.now(),
+            ChannelMemberRole.OWNER);
+    }
+
+    public static ChannelMemberEntity member(Long channelId, UUID userId) {
+        return new ChannelMemberEntity(channelId, userId, null, LocalDateTime.now(),
+            ChannelMemberRole.MEMBER);
     }
 
     public void updateLastReadMessageId(Long lastReadMessageId) {
         this.lastReadMessageId = lastReadMessageId;
+    }
+
+    /** 방장이 나갈 때 남은 멤버 중 최초 입장자가 물려받는다. */
+    public void promoteToOwner() {
+        this.role = ChannelMemberRole.OWNER;
     }
 
     @AllArgsConstructor

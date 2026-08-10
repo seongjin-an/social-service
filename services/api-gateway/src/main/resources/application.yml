@@ -47,7 +47,8 @@ spring:
         - id: message-service
           uri: lb://message-service
           predicates:
-            - Path=/api/channels/**
+            # /api/rooms/** = 오픈채팅 게시판(P3). 오픈방도 channel 이므로 같은 서비스가 서빙한다.
+            - Path=/api/channels/**,/api/rooms/**
           filters:
             - JwtAuthentication
 
