@@ -2,13 +2,14 @@ package com.social.profile.service;
 
 import com.social.profile.domain.ProfileEntity;
 import com.social.profile.domain.ProfileImageEntity;
+import com.social.profile.domain.ProfileTagEntity;
 import com.social.profile.location.GeoCacheService;
 import com.social.profile.location.ProfileLocationRepository;
 import com.social.profile.repository.ProfileImageRepository;
 import com.social.profile.repository.ProfileRepository;
 import com.social.profile.repository.ProfileTagRepository;
-import com.social.profile.repository.TagRedisRepository;
 import com.social.profile.repository.TagRepository;
+import com.social.profile.repository.TagRedisRepository;
 import com.social.profile.storage.ProfileImageStorage;
 import java.util.List;
 import java.util.UUID;
@@ -57,19 +58,25 @@ public class DeleteProfileService {
                 "프로필을 찾을 수 없거나 권한이 없습니다: " + profileId));
 
         // 삭제 전에 커밋 후 정리에 쓸 오브젝트 키 확보.
-        List<String> objectKeys = profileImageRepository.findByProfileId(pid).stream()
+        List<ProfileImageEntity> images = profileImageRepository.findByProfileId(pid);
+        List<String> objectKeys = images.stream()
             .map(ProfileImageEntity::getObjectKey)
             .toList();
 
-        // 태그: usage_count 감소 후 연결 삭제.
-        List<UUID> tagIds = profileTagRepository.findByProfileId(pid).stream()
+        // 태그: usage_count 감소.
+        // 정렬 — 감소도 증가와 같은 순서로 잠가야 한다. 이유는 SaveProfileService 쪽에 적어뒀다.
+        List<ProfileTagEntity> profileTags = profileTagRepository.findByProfileId(pid);
+        profileTags.stream()
             .map(pt -> pt.getTag().getTagId())
-            .toList();
-        tagIds.forEach(tagRepository::decrementUsage);
-        profileTagRepository.deleteByProfileId(pid);
+            .sorted()
+            .forEach(tagRepository::decrementUsage);
 
-        // 이미지 메타 삭제.
-        profileImageRepository.deleteByProfileId(pid);
+        // 자식은 벌크 delete 쿼리가 아니라 방금 읽어온 엔티티로 지운다.
+        // 벌크 쿼리는 DB 행만 지우고 세션에 올라온 엔티티는 그대로 남긴다. 남은 엔티티들이
+        // 곧 지워질 프로필을 계속 참조하고 있어서, 아래에서 조회 한 번만 나가도 auto-flush 가
+        // "unsaved transient instance" 로 터진다. 이 API 가 100% 500 이던 이유가 이거였다.
+        profileTagRepository.deleteAll(profileTags);
+        profileImageRepository.deleteAll(images);
 
         // 위치(있으면) 삭제.
         profileLocationRepository.findById(pid).ifPresent(profileLocationRepository::delete);
