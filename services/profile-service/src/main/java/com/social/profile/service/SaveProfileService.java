@@ -7,7 +7,7 @@ import com.social.profile.domain.TagEntity;
 import com.social.profile.repository.ProfileRepository;
 import com.social.profile.repository.ProfileTagRepository;
 import com.social.profile.repository.TagRepository;
-import java.util.LinkedHashMap;
+import java.util.TreeMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,7 +25,7 @@ public class SaveProfileService {
     private final ProfileRepository profileRepository;
     private final TagRepository tagRepository;
     private final ProfileTagRepository profileTagRepository;
-    private final TagResolver tagResolver;
+    private final TagWriter tagWriter;
     private final TagCacheSynchronizer tagCacheSynchronizer;
     private final ProfileCardCacheService profileCardCacheService;
     private final ProfilePreferenceCacheService profilePreferenceCacheService;
@@ -47,12 +47,16 @@ public class SaveProfileService {
         }
 
         // 정규화 기준 중복 제거 — "Java"/"java" 를 하나로. 안 하면 uk_profile_tag(profile_id, tag_id) 위반.
+        // TreeMap 인 건 정렬 때문이다. 태그 행은 여러 프로필이 같이 잠그는데 순서가 요청마다 다르면
+        // 서로 물려서 데드락(MySQL 1213)이 난다. 시더로 동시에 밀어넣을 때 실제로 터졌다.
+        // 이름 순으로 고정해두면 모든 요청이 같은 방향으로 잠그니까 물릴 고리가 안 생긴다.
         List<String> distinctTags = rawTags.stream()
             .filter(tag -> tag != null && !tag.isBlank())
-            .collect(Collectors.toMap(TagEntity::normalize, tag -> tag, (first, dup) -> first, LinkedHashMap::new))
+            .collect(Collectors.toMap(TagEntity::normalize, tag -> tag, (first, dup) -> first, TreeMap::new))
             .values().stream().toList();
 
-        List<UUID> tagIds = distinctTags.stream().map(tagResolver::resolveId).toList();
+        // 아래 세 작업(태그 확보 · profile_tag INSERT · usage_count +1)이 전부 이 순서를 따라간다.
+        List<UUID> tagIds = distinctTags.stream().map(tagWriter::getOrCreateId).toList();
 
         // 태그 참조는 프록시(getReferenceById)로 → 불필요한 SELECT 없이 FK 만 사용.
         List<ProfileTagEntity> profileTags = tagIds.stream()

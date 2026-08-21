@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class UpdateProfileService {
     private final ProfileRepository profileRepository;
     private final TagRepository tagRepository;
     private final ProfileTagRepository profileTagRepository;
-    private final TagResolver tagResolver;
+    private final TagWriter tagWriter;
     private final TagCacheSynchronizer tagCacheSynchronizer;
     private final ProfileCardCacheService profileCardCacheService;
     private final ProfilePreferenceCacheService profilePreferenceCacheService;
@@ -82,33 +83,48 @@ public class UpdateProfileService {
         }
 
         // 제거분: 기존에 있으나 신규에 없는 것 → profile_tag 삭제 + usage_count -1
-        List<ProfileTagEntity> toRemove = existingByNorm.entrySet().stream()
+        Map<String, ProfileTagEntity> removedByNorm = existingByNorm.entrySet().stream()
             .filter(e -> !newByNorm.containsKey(e.getKey()))
-            .map(Map.Entry::getValue)
-            .toList();
-        if (!toRemove.isEmpty()) {
-            profileTagRepository.deleteAll(toRemove);
-            toRemove.forEach(pt -> tagRepository.decrementUsage(pt.getTag().getTagId()));
-        }
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
 
-        // 최종 tagId 목록 구성 + 추가분 처리
-        List<UUID> finalTagIds = new ArrayList<>();
-        List<ProfileTagEntity> toAdd = new ArrayList<>();
-        for (Map.Entry<String, String> e : newByNorm.entrySet()) {
-            ProfileTagEntity existing = existingByNorm.get(e.getKey());
-            if (existing != null) {
-                finalTagIds.add(existing.getTag().getTagId());        // 유지
+        // 태그 행을 잠그는 작업(카운트 증감 · 신규 태그 확보)을 이름 하나의 순서로 몰아서 먼저 끝낸다.
+        // 제거분과 추가분을 따로 돌리면, 두 프로필이 같은 두 태그를 반대로 갈아끼울 때
+        // 한쪽은 A→B 순서로 다른 쪽은 B→A 순서로 잠가서 데드락이 난다.
+        TreeSet<String> affected = new TreeSet<>(removedByNorm.keySet());
+        newByNorm.keySet().stream().filter(norm -> !existingByNorm.containsKey(norm)).forEach(affected::add);
+
+        Map<String, UUID> addedIdByNorm = new LinkedHashMap<>();
+        for (String norm : affected) {
+            ProfileTagEntity removed = removedByNorm.get(norm);
+            if (removed != null) {
+                tagRepository.decrementUsage(removed.getTag().getTagId());
             } else {
-                UUID tagId = tagResolver.resolveId(e.getValue());     // 추가(get-or-create)
-                finalTagIds.add(tagId);
-                toAdd.add(ProfileTagEntity.of(
-                    UuidV7Generator.generate(), profile, tagRepository.getReferenceById(tagId)));
+                UUID tagId = tagWriter.getOrCreateId(newByNorm.get(norm));   // 추가(get-or-create)
+                addedIdByNorm.put(norm, tagId);
                 tagRepository.incrementUsage(tagId);
             }
         }
-        if (!toAdd.isEmpty()) {
+
+        // 여기부터는 profile_tag 만 건드린다. 태그 행은 위에서 이미 다 잠갔으니 더 기다릴 게 없다.
+        if (!removedByNorm.isEmpty()) {
+            profileTagRepository.deleteAll(removedByNorm.values());
+        }
+        if (!addedIdByNorm.isEmpty()) {
+            List<ProfileTagEntity> toAdd = addedIdByNorm.values().stream()
+                .map(tagId -> ProfileTagEntity.of(
+                    UuidV7Generator.generate(), profile, tagRepository.getReferenceById(tagId)))
+                .toList();
             profileTagRepository.saveAll(toAdd);
         }
+
+        // 최종 tagId 목록 — 유지된 건 기존 id, 새로 붙은 건 방금 확보한 id.
+        List<UUID> finalTagIds = newByNorm.keySet().stream()
+            .map(norm -> {
+                ProfileTagEntity existing = existingByNorm.get(norm);
+                return existing != null ? existing.getTag().getTagId() : addedIdByNorm.get(norm);
+            })
+            .toList();
+
         return finalTagIds;
     }
 }

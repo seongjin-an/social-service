@@ -26,6 +26,8 @@ pids/
 uploads/
 # mysql/kafka/redis 컨테이너 볼륨
 infra/.data/
+# 시더 산출물(seed.mjs 가 만든 유저 모수 파일)
+scripts/.seed/
 
 # ── 대용량 바이너리 (infra/otel/README.md 의 링크로 내려받는다) ────────────────
 infra/otel/*.jar

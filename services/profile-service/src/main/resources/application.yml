@@ -10,6 +10,12 @@ spring:
     username: ${DATASOURCE_USERNAME:dev_user}
     password: ${DATASOURCE_PASSWORD:dev_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # 기본값 10 으로는 부족했다. 없는 태그를 만들 때만 별도 트랜잭션(TagCreator)이 붙어서
+      # 그 순간 요청 하나가 커넥션을 두 개 쓴다. 빈 DB 에 시딩하듯 전 요청이 그 경로를 타면
+      # 동시 20 정도에서 풀이 말라 30초 타임아웃이 났다.
+      # MySQL max_connections 는 151 이고 DB 붙는 서비스가 4개라 30 은 아직 여유가 있다.
+      maximum-pool-size: ${DB_POOL_SIZE:30}
 
   data:
     redis:
