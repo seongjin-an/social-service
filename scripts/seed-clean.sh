@@ -1,15 +1,51 @@
 #!/usr/bin/env bash
 # 시더로 만든 테스트 데이터 정리. 대상은 이메일이 @seed.local 로 끝나는 계정이다.
+# 원래 쓰던 계정(tester@test.com 같은)은 패턴이 달라서 안 건드린다.
 #
-# MySQL 과 Redis 를 직접 지운다. 삭제 API 를 태우는 쪽이 더 "실제 경로" 지만,
-# 수천 건을 지우는 데 HTTP 왕복을 쓸 이유가 없고, 이건 개발용 정리 스크립트다.
-# 대신 API 가 해주던 뒷정리(파생 캐시·태그 카운트)를 여기서 직접 챙긴다.
+# ── 왜 API 를 안 쓰는가 ──────────────────────────────────────────────────────
+#   DELETE /api/profiles/{id} 를 태우는 쪽이 "실제 경로" 지만, 수천 건을 지우는 데
+#   HTTP 왕복을 쓸 이유가 없다. 개발용 정리 스크립트라 MySQL/Redis 를 직접 지운다.
+#   대신 API 가 해주던 뒷정리(파생 캐시 · 태그 카운트 재계산)를 여기서 직접 챙긴다.
 #
-# 사용:
-#   ./scripts/seed-clean.sh                 # @seed.local 전부 (확인 프롬프트)
-#   ./scripts/seed-clean.sh --prefix lock1  # 특정 집단만
-#   ./scripts/seed-clean.sh --dry-run       # 뭘 지울지만 보여주고 끝
-#   ./scripts/seed-clean.sh --yes           # 프롬프트 없이
+# ── 지우는 범위 ──────────────────────────────────────────────────────────────
+#   MySQL  profile_tag · profile_image · profile_location · profile · users
+#          likes · matches, 그리고 그 매칭이 만든 DIRECT 채널의 message ·
+#          channel_members · channel
+#   Redis  profile:card:{userId} · profile:pref:{userId} · seen:{userId} ·
+#          feed:{userId} · feed:ver:{userId} · tags:{profileId} · geo:users 멤버
+#   마무리  tag.usage_count 를 실제 profile_tag 부착 수로 재계산.
+#          벌크로 지우면 카운트가 그만큼 부풀어 있기 때문이다.
+#          태그 자체는 남긴다 — 어휘는 참조 데이터라 카운트 0 이 정상이다
+#   파일   prefix 없이 전체를 지울 때만 scripts/.seed/*.json 도 삭제한다
+#
+# ── 옵션 ─────────────────────────────────────────────────────────────────────
+#   --prefix <문자열>   그 접두사 집단만 (예: lock1 → lock1%@seed.local)
+#   --dry-run           대상 수만 보여주고 아무것도 지우지 않는다
+#   --yes, -y           확인 프롬프트 생략
+#   --help, -h          이 설명
+#
+#   환경변수로 접속 정보를 바꿀 수 있다:
+#     MYSQL_CONTAINER(social-mysql) · REDIS_CONTAINER(social-redis)
+#     DB_USER(dev_user) · DB_PASSWORD(dev_password) · DB_NAME(social)
+#
+# ── 사용 예시 ────────────────────────────────────────────────────────────────
+#   # 뭘 지울지 먼저 확인 (안전)
+#   ./scripts/seed-clean.sh --dry-run
+#
+#   # 특정 집단만 정리
+#   ./scripts/seed-clean.sh --prefix lock1 --dry-run
+#   ./scripts/seed-clean.sh --prefix lock1 --yes
+#
+#   # 전부 정리 (확인 프롬프트 뜬다 · yes 입력)
+#   ./scripts/seed-clean.sh
+#
+#   # 스크립트에서 쓸 때 — 프롬프트 없이
+#   ./scripts/seed-clean.sh --yes
+#
+# ⚠️ 멱등하지만 원자적이지는 않다. 중간에 실패하면 일부만 지워진 상태로 남는데,
+#    같은 명령을 다시 돌리면 남은 것부터 이어서 지운다.
+#
+# 데이터를 다시 채울 때는 scripts/seed.mjs 를 쓴다.
 
 set -euo pipefail
 
@@ -20,6 +56,11 @@ DB_USER="${DB_USER:-dev_user}"
 DB_PASSWORD="${DB_PASSWORD:-dev_password}"
 DB_NAME="${DB_NAME:-social}"
 
+# 파일 상단 주석을 그대로 출력한다. 설명을 두 군데 적으면 반드시 한쪽이 낡는다.
+print_usage() {
+  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+}
+
 PREFIX=""
 DRY_RUN=false
 ASSUME_YES=false
@@ -29,7 +70,8 @@ while [[ $# -gt 0 ]]; do
     --prefix)  PREFIX="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     --yes|-y)  ASSUME_YES=true; shift ;;
-    *) echo "알 수 없는 옵션: $1"; exit 1 ;;
+    --help|-h) print_usage; exit 0 ;;
+    *) echo "알 수 없는 옵션: $1 (--help 참고)"; exit 1 ;;
   esac
 done
 

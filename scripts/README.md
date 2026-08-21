@@ -52,48 +52,42 @@
 
 ---
 
-## 시더 — `scripts/seed.mjs` (F0-4 합성 프로필)
+## 테스트 데이터 · 데모 스크립트
 
-추천 피드/부하테스트의 모수를 만든다. **실제 API 경로로 쓴다** — 추천은 DB 가 아니라
-`geo:users` · `profile:card:{userId}` · `profile:pref:{userId}` 를 읽고, 카드 캐시가 없는 후보는
-`FeedQueryService` 가 그냥 버리기 때문에 SQL 벌크 인서트로는 피드가 영원히 빈다.
+| 스크립트 | 용도 |
+|---|---|
+| `scripts/seed.mjs` | 합성 프로필 시더 (F0-4). 추천 피드/부하테스트 모수를 만든다 |
+| `scripts/seed-clean.sh` | 시드 데이터 정리 (`@seed.local` 계정 기준) |
+| `scripts/demo-bots.mjs` | 시드 계정을 실제 사용자처럼 움직이게 하는 데모 봇 |
 
-회원가입만 user-service(8081) 로 가고, 프로필/위치는 profile-service(8085) 에 `X-User-Id`
-헤더로 직접 넣는다(컨트롤러가 그 헤더를 받으므로 유저별 토큰 관리가 필요 없다).
+옵션과 사용 예시는 **각 파일 상단 주석**에 있고 `--help` 로도 볼 수 있다.
+설명을 여기와 파일 두 곳에 적으면 반드시 한쪽이 낡으므로 파일 쪽만 관리한다.
 
 ```bash
-# 기본: 강남역 반경 3km 에 200명
-node scripts/seed.mjs
-
-# 1000명 + 시딩 후 실제 /api/feed 로 검증
-node scripts/seed.mjs --count 1000 --verify
-
-# 다른 도시/다른 모수 (prefix 가 다르면 별도 집단이 된다)
-node scripts/seed.mjs --count 300 --prefix hongdae --lat 37.5563 --lng 126.9236 --out scripts/.seed/hongdae.json
+node scripts/seed.mjs --help
+node scripts/demo-bots.mjs --help
+./scripts/seed-clean.sh --help
 ```
 
-| 옵션 | 기본값 | 설명 |
-|---|---|---|
-| `--count` | 200 | 생성 인원 |
-| `--lat` `--lng` | 37.4979 / 127.0276 | 클러스터 중심(강남역) |
-| `--radius-km` | 3 | 분포 반경. `prefDistanceKm` 상한이 **10km** 이므로 좁게 뭉쳐야 서로 후보로 잡힌다 |
-| `--concurrency` | 6 | ⚠️ 8 초과 금지에 가깝다 — 아래 참고 |
-| `--prefix` | seed | 이메일/이름 접두사. 집단 구분 키 |
-| `--password` | qwer1234 | 전원 동일(로그인 테스트용) |
-| `--seed` | 20260820 | PRNG 시드. **시드와 prefix 가 같으면** 같은 모수가 재현된다(prefix 를 시드에 섞어서, 집단마다 좌표가 겹치지 않는다) |
-| `--out` | scripts/.seed/seed-users.json | 결과 모수 파일(k6/테스트가 읽는다) |
-| `--verify` | off | 시드 유저 1명으로 게이트웨이 로그인 → `/api/feed` 호출해 후보 수 확인 |
+자주 쓰는 흐름만 적어둔다.
 
-**멱등**하다. 이미 있는 이메일은 로그인으로 userId 를 회수하고, 프로필이 있으면 재사용해 위치만
-갱신한다. 중간에 죽어도 같은 명령을 다시 돌리면 빈 곳만 채워진다.
+```bash
+# 모수 깔기 (강남역 반경 3km 에 1000명) + 피드로 확인
+node scripts/seed.mjs --count 1000 --concurrency 24 --verify
 
-### ⚠️ 동시성 기본값이 6 인 이유
-안전빵 기본값이다. 지금은 더 올려도 된다 — 동시 24 로 신규 200명을 넣어도 실패 0 이다.
+# 데모: 봇을 띄우고 브라우저에서 seed0@seed.local / qwer1234 로 로그인
+node scripts/demo-bots.mjs --demo-email seed0@seed.local --bots 8
 
-태그가 <b>이미 있으면</b> 조회로 끝나서 커넥션 하나로 돌아간다. 없는 태그를 만들 때만
-`TagCreator` 가 별도 트랜잭션(REQUIRES_NEW)을 열어 그 순간 커넥션을 두 개 쓴다.
-빈 DB 에 처음 시딩할 때는 전 요청이 그 경로를 타므로 커넥션 소비가 두 배가 된다
-(그래서 profile-service 풀을 30 으로 올려뒀다 · `DB_POOL_SIZE` 로 조정).
+# 정리 (지울 대상 먼저 확인)
+./scripts/seed-clean.sh --dry-run
+./scripts/seed-clean.sh --yes
+```
 
-어휘가 이미 깔려 있는 상태라면 `--concurrency 24` 정도까지 편하게 올려도 된다.
+### 알아둘 것 두 개
 
+**반경은 좁게.** `prefDistanceKm` 에 `@Max(10)` 이 걸려 있어서 넓게 뿌리면 서로 후보로
+안 잡히고 피드가 빈다. 기본 3km 를 크게 벗어나지 않는 게 좋다.
+
+**첫 시딩만 느리다.** 태그가 없는 상태에서는 요청마다 태그를 새로 만드느라 별도 트랜잭션이
+붙어 커넥션을 두 배로 쓴다(그래서 profile-service 풀을 30 으로 올려뒀다 · `DB_POOL_SIZE`).
+어휘가 깔린 뒤에는 `--concurrency 24` 로 신규 200명이 실패 없이 들어간다.

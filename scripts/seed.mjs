@@ -1,24 +1,67 @@
 #!/usr/bin/env node
 /**
- * 합성 프로필 시더 (features.md F0-4) — P2 추천 피드/P4 부하테스트의 모수를 만든다.
+ * 합성 프로필 시더 (features.md F0-4) — 추천 피드와 부하테스트가 돌아갈 모수를 만든다.
  *
- * 왜 API 경로인가:
- *   추천은 DB 를 보지 않는다. FeedSnapshotService 는 geo:users · profile:card:{userId} ·
- *   profile:pref:{userId} 만 읽고, FeedQueryService 는 카드 캐시가 없는 후보를 버린다.
- *   즉 SQL 벌크 인서트만으로는 피드가 영원히 빈다. 실제 쓰기 경로를 타야 캐시가 같이 채워진다.
+ * ── 왜 API 경로로 넣는가 ────────────────────────────────────────────────────
+ *   추천은 DB 를 안 본다. FeedSnapshotService 는 geo:users · profile:card:{userId} ·
+ *   profile:pref:{userId} 만 읽고, FeedQueryService 는 카드 캐시가 없는 후보를 그냥 버린다.
+ *   그래서 SQL 벌크 인서트로 넣으면 DB 엔 1000명이 있는데 피드는 텅 빈 상태가 된다.
+ *   실제 쓰기 경로를 타야 저장 코드가 캐시까지 같이 채워준다.
  *
- * 왜 프로필/위치는 게이트웨이를 우회하는가:
- *   SaveProfileController/UpdateLocationController 가 X-User-Id 헤더를 직접 받는다.
- *   시더가 유저마다 로그인해 토큰을 관리할 이유가 없다 (회원가입만 user-service 로 간다).
+ * ── 왜 프로필/위치는 게이트웨이를 우회하는가 ────────────────────────────────
+ *   SaveProfileController / UpdateLocationController 가 X-User-Id 헤더를 직접 받는다.
+ *   그래서 회원가입만 user-service(8081)로 보내고, 프로필과 위치는 profile-service(8085)에
+ *   그 헤더를 붙여 바로 넣는다. 유저마다 로그인해서 토큰을 들고 다닐 필요가 없다.
  *
- * 멱등: 이미 있는 이메일은 로그인으로 userId 를 회수하고, 프로필이 있으면 재사용해 위치만 갱신한다.
- *       같은 --seed 값이면 같은 데이터가 나온다(재현 가능).
+ * ── 전제 ────────────────────────────────────────────────────────────────────
+ *   인프라 컨테이너 + user-service(8081) + profile-service(8085) 기동.
+ *   --verify 를 쓰려면 api-gateway(8080) 와 recommendation-service(8087)도 필요하다.
  *
- * 사용:
- *   node scripts/seed.mjs --count 300
- *   node scripts/seed.mjs --count 300 --radius-km 3 --concurrency 24 --verify
- *   node scripts/seed.mjs --count 50 --prefix demo --lat 37.5665 --lng 126.9780
+ * ── 옵션 ────────────────────────────────────────────────────────────────────
+ *   --count <n>          생성 인원 (기본 200)
+ *   --prefix <문자열>    이메일/이름 접두사 겸 집단 구분 키 (기본 seed)
+ *   --lat --lng          클러스터 중심 (기본 강남역 37.4979 / 127.0276)
+ *   --radius-km <km>     분포 반경 (기본 3). prefDistanceKm 상한이 10km 라서 좁게 뭉쳐야
+ *                        서로 후보로 잡힌다. 넓게 뿌리면 피드가 빈다
+ *   --concurrency <n>    동시 요청 (기본 6). 어휘가 깔린 뒤엔 24 까지 올려도 된다.
+ *                        빈 DB 첫 시딩은 태그를 만드느라 커넥션을 두 배로 쓴다
+ *   --password <비번>    전원 동일 (기본 qwer1234)
+ *   --seed <숫자>        PRNG 시드 (기본 20260820). 시드+prefix 가 같으면 같은 모수가 재현된다
+ *   --out <경로>         결과 모수 파일 (기본 scripts/.seed/{prefix}-users.json)
+ *   --verify             시딩 후 시드 유저 1명으로 /api/feed 를 호출해 후보 수를 확인
+ *   --user-base          기본 http://localhost:8081
+ *   --profile-base       기본 http://localhost:8085
+ *   --gateway            기본 http://localhost:8080 (--verify 용)
+ *   --help               이 설명
+ *
+ * ── 채워지는 것 ─────────────────────────────────────────────────────────────
+ *   MySQL  users · profile · profile_location · tag · profile_tag
+ *   Redis  geo:users · profile:card:{userId} · profile:pref:{userId} · tags:{profileId}
+ *   결과   --out 파일에 {email, password, userId, profileId, gender, age, tags, lat, lng}
+ *          k6 나 demo-bots.mjs 가 이 파일을 모수로 읽는다
+ *
+ * ── 멱등 ────────────────────────────────────────────────────────────────────
+ *   이미 있는 이메일은 로그인으로 userId 를 회수하고, 프로필이 있으면 재사용해 위치만 갱신한다.
+ *   중간에 끊겨도 같은 명령을 다시 돌리면 빈 곳만 채워진다.
+ *
+ * ── 사용 예시 ───────────────────────────────────────────────────────────────
+ *   # 기본 — 강남역 반경 3km 에 200명
+ *   node scripts/seed.mjs
+ *
+ *   # 1000명 + 시딩 직후 피드 확인
+ *   node scripts/seed.mjs --count 1000 --concurrency 24 --verify
+ *
+ *   # 다른 지역에 별도 집단 (prefix 가 다르면 좌표 분포도 달라진다)
+ *   node scripts/seed.mjs --count 300 --prefix hongdae --lat 37.5563 --lng 126.9236 \
+ *     --out scripts/.seed/hongdae.json
+ *
+ *   # 좁게 뭉쳐서 매칭 데모용 소수 집단
+ *   node scripts/seed.mjs --count 30 --prefix demo --radius-km 1
+ *
+ * 정리는 scripts/seed-clean.sh 로 한다.
  */
+
+import { readFileSync } from 'node:fs';
 
 const DEFAULTS = {
   count: 200,
@@ -32,7 +75,7 @@ const DEFAULTS = {
   'user-base': 'http://localhost:8081',
   'profile-base': 'http://localhost:8085',
   gateway: 'http://localhost:8080',
-  out: 'scripts/.seed/seed-users.json',
+  out: '',   // 안 주면 scripts/.seed/{prefix}-users.json
   seed: 20260820,
   verify: false,
 };
@@ -45,6 +88,16 @@ const TAGS = [
 
 const args = parseArgs(process.argv.slice(2));
 const opt = { ...DEFAULTS, ...args };
+
+if (opt.help) {
+  printUsage();
+  process.exit(0);
+}
+
+// prefix 를 바꿔 돌렸는데 out 이 고정이면 앞 집단 파일을 덮어쓴다. 집단마다 파일을 따로 둔다.
+if (!opt.out || opt.out === true) {
+  opt.out = `scripts/.seed/${opt.prefix}-users.json`;
+}
 // prefix 를 시드에 섞는다. 안 섞으면 prefix 만 바꿔 돌린 집단이 이전 집단과 좌표·나이가
 // 그대로 겹쳐서(같은 난수열) 거리 0.00km 짜리 후보가 잔뜩 생긴다.
 const rand = mulberry32(Number(opt.seed) + hashCode(String(opt.prefix)));
@@ -259,6 +312,13 @@ function mulberry32(a) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** 파일 상단 주석을 그대로 출력한다. 설명을 두 군데 적으면 반드시 한쪽이 낡는다. */
+function printUsage() {
+  const source = readFileSync(new URL(import.meta.url), 'utf8');
+  const header = source.slice(source.indexOf('/**') + 3, source.indexOf(' */'));
+  console.log(header.split('\n').map(line => line.replace(/^\s*\* ?/, '')).join('\n'));
 }
 
 function parseArgs(argv) {
